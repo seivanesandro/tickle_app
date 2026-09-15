@@ -1,12 +1,12 @@
 "use client";
 
 import ReactMarkdown from "react-markdown";
-import { IMessage } from "@/entities/chat/model/types";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
+// Aceitar partial para não quebrar a tipagem do temp message enquanto não ligamos a BD
 interface MessageBubbleProps {
-  message: IMessage;
-  imageUrl?: string; // Caso a mensagem tenha imagem associada (do public.message_images)
+  message: { role: string; content: string | null };
+  imageUrl?: string;
 }
 
 export function MessageBubble({ message, imageUrl }: MessageBubbleProps) {
@@ -21,10 +21,7 @@ export function MessageBubble({ message, imageUrl }: MessageBubbleProps) {
           {isUser ? (
             <AvatarFallback className="bg-primary/20 text-primary text-xs">TU</AvatarFallback>
           ) : (
-            <>
-              {/* O Tickle AI tem cor verde fluorescente na identidade */}
-              <AvatarFallback className="bg-primary text-primary-foreground font-bold text-xs">AI</AvatarFallback>
-            </>
+            <AvatarFallback className="bg-primary text-primary-foreground font-bold text-xs">AI</AvatarFallback>
           )}
         </Avatar>
 
@@ -48,8 +45,7 @@ export function MessageBubble({ message, imageUrl }: MessageBubbleProps) {
           )}
 
           {message.content && (
-            <div className="prose prose-sm dark:prose-invert max-w-none break-words">
-              {/* react-markdown padrão já impede HTML bruto se não usarmos rehypeRaw */}
+            <div className="prose prose-sm dark:prose-invert max-w-none break-words font-sans">
               <ReactMarkdown>{message.content}</ReactMarkdown>
             </div>
           )}

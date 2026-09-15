@@ -1,17 +1,14 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Roboto } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/shared/providers/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { InstallPrompt } from "@/features/install-prompt/InstallPrompt";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const roboto = Roboto({
+  weight: ["300", "400", "500", "700"],
   subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  variable: "--font-roboto",
 });
 
 export const metadata: Metadata = {
@@ -29,8 +26,6 @@ export const viewport: Viewport = {
   themeColor: "#000000",
 };
 
-import { InstallPrompt } from "@/features/install-prompt/InstallPrompt";
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -38,11 +33,11 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      lang="pt"
+      className={`${roboto.variable} font-sans h-full antialiased`}
       suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-full flex flex-col font-sans" suppressHydrationWarning>
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"
