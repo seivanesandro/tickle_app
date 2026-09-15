@@ -29,6 +29,8 @@ export const viewport: Viewport = {
   themeColor: "#000000",
 };
 
+import { InstallPrompt } from "@/features/install-prompt/InstallPrompt";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -48,6 +50,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           {children}
+          <InstallPrompt />
           <Toaster position="top-center" />
         </ThemeProvider>
       </body>
