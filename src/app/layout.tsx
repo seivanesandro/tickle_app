@@ -27,7 +27,7 @@ export const metadata: Metadata = {
     siteName: "Tickle AI",
     images: [
       {
-        url: "https://tickle-ai.vercel.app/logo_com_texto.png",
+        url: "https://tickle-ai.vercel.app/logo.png",
         width: 1200,
         height: 630,
         alt: "Tickle AI Logo",
@@ -40,7 +40,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Tickle AI",
     description: "Tickle AI - Conversas inteligentes sem filtros",
-    images: ["https://tickle-ai.vercel.app/logo_com_texto.png"],
+    images: ["https://tickle-ai.vercel.app/logo.png"],
   },
 };
 
