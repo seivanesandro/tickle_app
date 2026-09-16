@@ -37,6 +37,7 @@ export function ChatSidebar({ chats, onSelectChat }: ChatSidebarProps) {
     if (success) {
       toast.success("New chat created!");
       router.refresh();
+      if (onSelectChat) onSelectChat();
     } else {
       toast.error("Error", { description: error });
     }
@@ -95,8 +96,8 @@ export function ChatSidebar({ chats, onSelectChat }: ChatSidebarProps) {
   }
 
   return (
-    <div className="w-64 border-r bg-card flex flex-col h-full">
-      <div className="p-4 border-b">
+    <div className="w-74 bg-card flex flex-col h-full">
+      <div className="py-6 px-3">
         <Button 
           onClick={handleCreateChat} 
           disabled={isCreating} 
@@ -107,7 +108,7 @@ export function ChatSidebar({ chats, onSelectChat }: ChatSidebarProps) {
         </Button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-2 space-y-2">
+      <div className="flex-1 overflow-y-auto py-2 px-3 space-y-2">
         {visibleChats.map((chat) => (
           <div 
             key={chat.id} 
@@ -157,7 +158,7 @@ export function ChatSidebar({ chats, onSelectChat }: ChatSidebarProps) {
       </div>
 
       {/* FOOTER LOGOUT */}
-      <div className="p-4 border-t mt-auto">
+      <div className="p-4 mt-auto">
         <Button 
           variant="outline" 
           className="w-full text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors" 
@@ -170,3 +171,4 @@ export function ChatSidebar({ chats, onSelectChat }: ChatSidebarProps) {
     </div>
   );
 }
+

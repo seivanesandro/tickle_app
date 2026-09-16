@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -163,7 +163,7 @@ export default function ChatPage() {
                       <span className="sr-only">Open Menu</span>
                     </Button>
                   </SheetTrigger>
-                  <SheetContent side="left" className="p-0 w-72">
+                  <SheetContent side="left" className="p-0 w-4/5" showCloseButton={false}>
                     <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
                     <ChatSidebar chats={chats} onSelectChat={() => setIsSidebarOpen(false)} />
                   </SheetContent>
@@ -232,6 +232,7 @@ export default function ChatPage() {
     </ClientOnly>
   );
 }
+
 
 
 
