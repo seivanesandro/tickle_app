@@ -1,4 +1,4 @@
-﻿/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/shared/api/supabaseServer";
 import { env } from "@/shared/config/env";
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
 
     // 6. Preparar InjeÃ§Ã£o do System Prompt e Escolha de Modelo OpenRouter GrÃ¡tis
     const sysPrompt = SYSTEM_PROMPTS[mode as keyof typeof SYSTEM_PROMPTS] || SYSTEM_PROMPTS.intelectual;
-    const modelId = imageBase64 ? "inclusionai/ling-3.0-flash-vl:free" : "liquid/lfm-2.5-2.6b:free";
+    const modelId = imageBase64 ? "inclusionai/ling-3.0-flash-vl:free" : "meta-llama/llama-3.1-8b-instruct";
     let aiResponseText = "";
 
     // 7. Chamar o OpenRouter
