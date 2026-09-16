@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -18,31 +18,20 @@ export function InstallPrompt() {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    // 1. Verificar se já está a correr como PWA (standalone)
     const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
-    if (isStandalone) {
-      return;
-    }
+    if (isStandalone) return;
 
-    // 2. Verificar se o utilizador já mandou esconder o banner antes
     const isDismissed = localStorage.getItem("pwa-prompt-dismissed");
-    if (isDismissed === "true") {
-      return;
-    }
+    if (isDismissed === "true") return;
 
-    // 3. Ouve o evento que o browser dispara quando deteta uma PWA válida
     const handleBeforeInstallPrompt = (e: Event) => {
-      // Evita que o aviso padrão chato do browser apareça
       e.preventDefault();
-      // Guarda o evento para usarmos no botão
       setDeferredPrompt(e as BeforeInstallPromptEvent);
-      // Mostra o nosso banner bonito do Shadcn
       setIsVisible(true);
     };
 
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
 
-    // Se o utilizador instalar pelos menus do browser, esconde o nosso banner
     const handleAppInstalled = () => {
       setIsVisible(false);
       setDeferredPrompt(null);
@@ -58,25 +47,17 @@ export function InstallPrompt() {
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
     
-    // Dispara o prompt nativo de instalação do sistema
     deferredPrompt.prompt();
-    
-    // Aguarda a resposta do utilizador
     const { outcome } = await deferredPrompt.userChoice;
     
-    // Se ele disser sim, fechamos o banner
     if (outcome === "accepted") {
       setIsVisible(false);
     }
-    
-    // O evento prompt só pode ser chamado uma vez, por isso limpamos a state
     setDeferredPrompt(null);
   };
 
   const handleDismiss = () => {
-    // Esconde na sessão atual
     setIsVisible(false);
-    // Guarda no localStorage para não chatear mais no futuro
     localStorage.setItem("pwa-prompt-dismissed", "true");
   };
 
@@ -89,14 +70,14 @@ export function InstallPrompt() {
           <Download className="h-5 w-5 text-primary" />
         </div>
         <div className="flex flex-col">
-          <span className="text-sm font-bold text-foreground">Instalar Tickle AI</span>
-          <span className="text-xs text-muted-foreground">App nativa, acesso mais rápido.</span>
+          <span className="text-sm font-bold text-foreground">Install Tickle AI</span>
+          <span className="text-xs text-muted-foreground">Native app, faster access.</span>
         </div>
       </div>
       
       <div className="flex items-center gap-2 shrink-0">
         <Button onClick={handleInstallClick} size="sm" className="font-bold text-xs bg-primary hover:bg-primary/90 text-primary-foreground">
-          Instalar
+          Install
         </Button>
         <Button 
           onClick={handleDismiss} 
@@ -110,4 +91,3 @@ export function InstallPrompt() {
     </div>
   );
 }
-

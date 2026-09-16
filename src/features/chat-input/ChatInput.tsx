@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import TextareaAutosize from "react-textarea-autosize";
@@ -66,7 +66,7 @@ export function ChatInput({ onSendMessage, isLoading, disabled }: ChatInputProps
           value={content}
           onChange={(e) => setContent(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Pergunta ao Tickle AI..."
+          placeholder="Ask Tickle AI..."
           disabled={isLoading || disabled}
           className="flex-1 resize-none bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
         />
@@ -86,4 +86,5 @@ export function ChatInput({ onSendMessage, isLoading, disabled }: ChatInputProps
     </div>
   );
 }
+
 

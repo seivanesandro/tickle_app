@@ -1,9 +1,9 @@
-"use client";
+﻿"use client";
 
 import ReactMarkdown from "react-markdown";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
-// Aceitar partial para não quebrar a tipagem do temp message enquanto não ligamos a BD
+// Aceitar partial para nÃ£o quebrar a tipagem do temp message enquanto nÃ£o ligamos a BD
 interface MessageBubbleProps {
   message: { role: string; content: string | null };
   imageUrl?: string;
@@ -19,7 +19,7 @@ export function MessageBubble({ message, imageUrl }: MessageBubbleProps) {
         {/* Avatar */}
         <Avatar className="h-8 w-8 shrink-0 border border-primary/20">
           {isUser ? (
-            <AvatarFallback className="bg-primary/20 text-primary text-xs">TU</AvatarFallback>
+            <AvatarFallback className="bg-primary/20 text-primary text-xs">YOU</AvatarFallback>
           ) : (
             <AvatarFallback className="bg-primary text-primary-foreground font-bold text-xs">AI</AvatarFallback>
           )}
@@ -54,3 +54,4 @@ export function MessageBubble({ message, imageUrl }: MessageBubbleProps) {
     </div>
   );
 }
+

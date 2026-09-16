@@ -1,9 +1,8 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { z } from "zod";
 import { useForm } from "react-hook-form";
+import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { createClient } from "@/shared/api/supabaseBrowser";
@@ -14,23 +13,22 @@ import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 
 const authSchema = z.object({
-  email: z.string().email("Por favor, introduz um email válido."),
-  password: z.string().min(6, "A password deve ter no mínimo 6 caracteres."),
+  email: z.string().email("Please enter a valid email."),
+  password: z.string().min(6, "Password must be at least 6 characters."),
 });
 
 type AuthFormValues = z.infer<typeof authSchema>;
 
 export function AuthForm() {
-  const router = useRouter();
-  const supabase = createClient();
   const [isLogin, setIsLogin] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+  const supabase = createClient();
 
   const {
     register,
     handleSubmit,
-    getValues, // <--- Adicionado para podermos ler o email solto sem validar a password!
+    getValues,
     formState: { errors },
   } = useForm<AuthFormValues>({
     resolver: zodResolver(authSchema),
@@ -51,18 +49,15 @@ export function AuthForm() {
         });
 
         if (error) {
-          toast.error("Erro no login", {
+          toast.error("Login error", {
             description: error.message,
           });
           return;
         }
 
-        toast.success("Login com sucesso!");
-        router.push("/chat");
+        toast.success("Successfully logged in!");
+        window.location.href = "/chat";
       } else {
-        // CORREÇÃO DO ERRO AQUI:
-        // Antes estava 'const { data, error }' e estava a chocar com o 'data' da função onSubmit!
-        // Mudei para 'authData' para não colidir as variáveis!
         const { data: authData, error } = await supabase.auth.signUp({
           email: data.email,
           password: data.password,
@@ -72,69 +67,65 @@ export function AuthForm() {
         });
 
         if (error) {
-          toast.error("Erro ao registar", {
+          toast.error("Registration error", {
             description: error.message,
           });
           return;
         }
 
         if (authData.user?.identities?.length === 0) {
-          toast.error("Erro ao registar", {
-            description: "Este email já se encontra registado.",
+          toast.error("Registration error", {
+            description: "This email is already registered.",
           });
           return;
         }
 
-        toast.success("Verifica o teu email!", {
-          description: "Enviámos um link de confirmação. Tens de clicar nele para entrar na app.",
+        toast.success("Check your email!", {
+          description: "We sent a confirmation link. Click it to enter the app.",
           duration: 8000,
         });
-        
-        setIsLogin(true); 
       }
-    } catch {
-      toast.error("Ocorreu um erro inesperado.");
+    } catch (err) {
+      toast.error("An unexpected error occurred.");
     } finally {
       setIsLoading(false);
     }
   }
 
-  // NOVA FUNÇÃO: Pedir recuperação de Password
   async function handleResetPassword() {
     const email = getValues("email");
     if (!email) {
-      toast.error("Email em falta", {
-        description: "Escreve o teu email na caixa acima primeiro, para sabermos para onde enviar o link de recuperação.",
+      toast.error("Missing email", {
+        description: "Please enter your email above so we know where to send the reset link.",
       });
       return;
     }
 
     setIsResetting(true);
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      // Quando clicarem no email de recuperação, vêm parar aqui
       redirectTo: `${window.location.origin}/update-password`,
     });
     setIsResetting(false);
 
     if (error) {
-      toast.error("Erro ao recuperar", { description: error.message });
+      toast.error("Recovery error", { description: error.message });
     } else {
-      toast.success("Email enviado!", {
-        description: "Vê a tua caixa de correio para redefinires a tua password.",
+      toast.success("Email sent!", {
+        description: "Check your inbox to reset your password.",
       });
     }
   }
 
   return (
-    <div className="mx-auto mt-10 w-full max-w-sm space-y-6 rounded-lg border bg-card p-6 shadow-sm">
+    <div className="w-full max-w-sm p-6 space-y-6 bg-card border rounded-xl shadow-lg">
       <div className="space-y-2 text-center">
         <h1 className="text-2xl font-bold tracking-tight">
-          {isLogin ? "Bem-vindo de volta" : "Cria a tua conta"}
+          {isLogin ? "Welcome to Tickle AI" : "Create an account"}
         </h1>
         <p className="text-sm text-muted-foreground">
           {isLogin
-            ? "Introduz os teus dados para entrar no Tickle AI"
-            : "Preenche os dados para começares a usar o assistente"}
+            ? "Enter your details to log into Tickle AI"
+            : "Enter your details to create an account"}
         </p>
       </div>
 
@@ -144,7 +135,7 @@ export function AuthForm() {
           <Input
             id="email"
             type="email"
-            placeholder="nome@exemplo.com"
+            placeholder="name@example.com"
             {...register("email")}
           />
           {errors.email && (
@@ -156,7 +147,6 @@ export function AuthForm() {
           <div className="flex items-center justify-between">
             <Label htmlFor="password">Password</Label>
             
-            {/* NOVO: Botão de Esqueci-me da Password (só aparece no Login) */}
             {isLogin && (
               <button
                 type="button"
@@ -164,7 +154,7 @@ export function AuthForm() {
                 disabled={isResetting}
                 className="text-xs text-primary hover:underline disabled:opacity-50"
               >
-                {isResetting ? "A enviar..." : "Esqueceste-te da password?"}
+                {isResetting ? "Sending..." : "Forgot password?"}
               </button>
             )}
           </div>
@@ -180,27 +170,30 @@ export function AuthForm() {
           )}
         </div>
 
-        <Button
-          type="submit"
-          className="w-full font-bold"
-          disabled={isLoading}
-        >
-          {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {isLogin ? "Entrar" : "Registar"}
+        <Button type="submit" className="w-full font-bold" disabled={isLoading}>
+          {isLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : isLogin ? (
+            "Log in"
+          ) : (
+            "Register"
+          )}
         </Button>
       </form>
 
-      <div className="text-center text-sm">
+      <div className="text-center text-sm mt-4">
         <button
           type="button"
           onClick={() => setIsLogin(!isLogin)}
           className="text-primary hover:underline"
         >
           {isLogin
-            ? "Não tens conta? Regista-te."
-            : "Já tens conta? Faz login."}
+            ? "Don't have an account? Register."
+            : "Already have an account? Log in."}
         </button>
       </div>
     </div>
   );
 }
+
+

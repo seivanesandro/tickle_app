@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect } from "react";
 import { createClient } from "@/shared/api/supabaseBrowser";
@@ -27,7 +27,7 @@ export function useRealtimeLimit(userId?: string) {
         (payload) => {
           const newNotification = payload.new;
           
-          toast.error("Alerta de Limite Atingido", {
+          toast.error("Rate Limit Alert", {
             description: newNotification.content,
             duration: Infinity, 
           });
@@ -52,3 +52,4 @@ export function useRealtimeLimit(userId?: string) {
     };
   }, [userId, currentUser, setCurrentUser]);
 }
+
