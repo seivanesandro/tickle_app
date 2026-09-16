@@ -11,7 +11,7 @@ export async function createChat(mode: string) {
 
     const { data, error } = await supabase
       .from("chats")
-      .insert({ user_id: user.id, mode: mode })
+      .insert({ user_id: user.id, mode: mode, title: "New Chat" })
       .select("id")
       .single();
 
@@ -65,4 +65,5 @@ export async function updateChatMode(chatId: string, mode: string) {
     return { success: false, error: "Internal server error." };
   }
 }
+
 
