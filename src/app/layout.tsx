@@ -12,12 +12,34 @@ const roboto = Roboto({
 
 export const metadata: Metadata = {
   title: "Tickle AI",
-  description: "Assistente lÃ³gico multimodal avanÃ§ado",
+  description: "Tickle AI - Conversas inteligentes sem filtros",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
     title: "Tickle AI",
+  },
+  openGraph: {
+    title: "Tickle AI",
+    description: "Tickle AI - Conversas inteligentes sem filtros",
+    url: "https://tickle-ai.vercel.app",
+    siteName: "Tickle AI",
+    images: [
+      {
+        url: "/logo_com_texto.png",
+        width: 1200,
+        height: 630,
+        alt: "Tickle AI Logo",
+      }
+    ],
+    locale: "pt_PT",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Tickle AI",
+    description: "Tickle AI - Conversas inteligentes sem filtros",
+    images: ["/logo_com_texto.png"],
   },
 };
 
@@ -80,4 +102,5 @@ export default function RootLayout({
     </html>
   );
 }
+
 
