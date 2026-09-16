@@ -11,6 +11,7 @@ const roboto = Roboto({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://tickle-ai.vercel.app"),
   title: "Tickle AI",
   description: "Tickle AI - Conversas inteligentes sem filtros",
   manifest: "/manifest.json",
@@ -26,7 +27,7 @@ export const metadata: Metadata = {
     siteName: "Tickle AI",
     images: [
       {
-        url: "/logo_com_texto.png",
+        url: "https://tickle-ai.vercel.app/logo_com_texto.png",
         width: 1200,
         height: 630,
         alt: "Tickle AI Logo",
@@ -39,7 +40,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Tickle AI",
     description: "Tickle AI - Conversas inteligentes sem filtros",
-    images: ["/logo_com_texto.png"],
+    images: ["https://tickle-ai.vercel.app/logo_com_texto.png"],
   },
 };
 
@@ -102,5 +103,6 @@ export default function RootLayout({
     </html>
   );
 }
+
 
 
