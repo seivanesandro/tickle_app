@@ -1,11 +1,11 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2, MessageSquare, LogOut } from "lucide-react";
 import { IChat } from "@/entities/chat/model/types";
 import { useChatStore } from "@/entities/chat/model/store";
-import { createChat, deleteChat, updateChatMode } from "@/entities/chat/actions";
+import { deleteChat, updateChatMode } from "@/entities/chat/actions";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
@@ -20,7 +20,6 @@ interface ChatSidebarProps {
 export function ChatSidebar({ chats, onSelectChat }: ChatSidebarProps) {
   const router = useRouter();
   const { activeChat, setActiveChat } = useChatStore();
-  const [isCreating, setIsCreating] = useState(false);
   
   // React Best Practice: Em vez de duplicar o array e usar useEffect (que causa cascading renders),
   // guardamos apenas os IDs dos chats apagados de forma otimista.
@@ -30,17 +29,9 @@ export function ChatSidebar({ chats, onSelectChat }: ChatSidebarProps) {
   const visibleChats = chats.filter(chat => !deletedIds.has(chat.id));
 
   async function handleCreateChat() {
-    setIsCreating(true);
-    const { success, error } = await createChat("intelectual"); // Default mode
-    setIsCreating(false);
-
-    if (success) {
-      toast.success("New chat created!");
-      router.refresh();
-      if (onSelectChat) onSelectChat();
-    } else {
-      toast.error("Error", { description: error });
-    }
+    // Optimistic UI: apenas limpa o ecrã. A BD só grava quando houver mensagem.
+    setActiveChat(null);
+    if (onSelectChat) onSelectChat();
   }
 
   async function handleDeleteChat(id: string, e: React.MouseEvent) {
@@ -100,7 +91,6 @@ export function ChatSidebar({ chats, onSelectChat }: ChatSidebarProps) {
       <div className="py-6 px-3">
         <Button 
           onClick={handleCreateChat} 
-          disabled={isCreating} 
           className="w-full font-bold"
         >
           <Plus className="mr-2 h-4 w-4" />

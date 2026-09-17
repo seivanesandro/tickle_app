@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect } from "react";
 import { createClient } from "@/shared/api/supabaseBrowser";
@@ -7,8 +7,6 @@ import { IUser } from "@/entities/user/model/types";
 import { toast } from "sonner";
 
 export function useRealtimeLimit(userId?: string) {
-  const { currentUser, setCurrentUser } = useUserStore();
-
   useEffect(() => {
     if (!userId) return;
     
@@ -32,15 +30,18 @@ export function useRealtimeLimit(userId?: string) {
             duration: Infinity, 
           });
 
-          if (currentUser) {
-            setCurrentUser({ ...currentUser, is_locked: true });
+          // Ler e escrever o estado atual diretamente da Store (Zustand getState) para evitar ciclos no useEffect
+          const currentState = useUserStore.getState().currentUser;
+          
+          if (currentState) {
+            useUserStore.getState().setCurrentUser({ ...currentState, is_locked: true });
           } else {
-            setCurrentUser({ 
-              id: userId, 
-              is_locked: true, 
+            useUserStore.getState().setCurrentUser({
+              id: userId,
+              is_locked: true,
               message_count: 10000,
               created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
+              updated_at: new Date().toISOString(),
             } as unknown as IUser);
           }
         }
@@ -50,6 +51,5 @@ export function useRealtimeLimit(userId?: string) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [userId, currentUser, setCurrentUser]);
+  }, [userId]);
 }
-

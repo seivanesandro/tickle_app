@@ -1,6 +1,7 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -24,6 +25,7 @@ export function AuthForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const supabase = createClient();
+  const router = useRouter();
 
   const {
     register,
@@ -56,7 +58,7 @@ export function AuthForm() {
         }
 
         toast.success("Successfully logged in!");
-        window.location.href = "/chat";
+        router.push("/chat");
       } else {
         const { data: authData, error } = await supabase.auth.signUp({
           email: data.email,
@@ -85,7 +87,7 @@ export function AuthForm() {
           duration: 8000,
         });
       }
-    } catch (err) {
+    } catch {
       toast.error("An unexpected error occurred.");
     } finally {
       setIsLoading(false);
