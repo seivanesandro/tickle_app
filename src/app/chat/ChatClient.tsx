@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState, useRef } from "react";
 import Image from "next/image";
@@ -7,6 +7,7 @@ import { useUserStore } from "@/entities/user/model/store";
 import { useChatStore } from "@/entities/chat/model/store";
 import { createChat } from "@/entities/chat/actions";
 import { useRealtimeLimit } from "@/features/realtime-limit/useRealtimeLimit";
+import { useIdleTimeout } from "@/features/auth/useIdleTimeout";
 import { ChatSidebar } from "@/widgets/ChatSidebar";
 import { ChatInput } from "@/features/chat-input/ChatInput";
 import { MessageBubble } from "@/widgets/MessageBubble";
@@ -18,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { ClientOnly } from "@/shared/lib/ClientOnly";
 import { toast } from "sonner";
 import { useMemo } from "react";
+import { useRouter } from "next/navigation";
 
 interface ChatClientProps {
   initialUser: IUser | null;
@@ -25,7 +27,9 @@ interface ChatClientProps {
 }
 
 export function ChatClient({ initialUser, initialChats }: ChatClientProps) {
-  // Singleton Pattern: Memorizar o cliente do Supabase para evitar instÃ¢ncias duplicadas (Leak fix)
+  const router = useRouter();
+
+  // Singleton Pattern: Memorizar o cliente do Supabase para evitar instâncias duplicadas (Leak fix)
   const supabase = useMemo(() => createClient(), []);
   
   const { currentUser, setCurrentUser, isLoading, setLoading } = useUserStore();
@@ -46,6 +50,9 @@ export function ChatClient({ initialUser, initialChats }: ChatClientProps) {
   }, [initialUser, currentUser, setCurrentUser, setLoading]);
 
   useRealtimeLimit(currentUser?.id);
+
+  // Iniciar timer de inatividade de 30 minutos
+  useIdleTimeout(30);
 
   // Auto-scroll
   useEffect(() => {
@@ -126,6 +133,13 @@ export function ChatClient({ initialUser, initialChats }: ChatClientProps) {
           imageBase64
         })
       });
+
+      // Se a sessão expirou durante a noite (401), expulsa o utilizador de volta para o login suavemente
+      if (res.status === 401) {
+        toast.error("Session expired", { description: "Please log in again." });
+        router.push("/login");
+        return;
+      }
 
       const data = await res.json();
 

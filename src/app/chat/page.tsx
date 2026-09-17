@@ -1,6 +1,9 @@
-﻿import { redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { createClient } from "@/shared/api/supabaseServer";
 import { ChatClient } from "./ChatClient";
+
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
 
 export default async function ChatPage() {
   const supabase = await createClient();
