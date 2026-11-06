@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
       
     const previousMessages = (history || []).map(msg => ({ 
       role: msg.role as "user" | "assistant", 
-      content: msg.content 
+      content: msg.content || "[Imagem enviada]"
     }));
 
     // 6. Inserir a mensagem do utilizador
@@ -80,13 +80,20 @@ export async function POST(req: NextRequest) {
 
     // 7. Preparar Injeção do System Prompt e Escolha de Modelo OpenRouter
     const sysPrompt = SYSTEM_PROMPTS[mode as keyof typeof SYSTEM_PROMPTS] || SYSTEM_PROMPTS.intelectual;
-    const modelId = imageBase64 ? "inclusionai/ling-3.0-flash-vl:free" : "meta-llama/llama-3.1-8b-instruct";
+    const modelId = imageBase64 ? "google/gemma-3-27b-it:free" : "meta-llama/llama-3.1-8b-instruct";
     let aiResponseText = "";
 
     // 8. Chamar o OpenRouter
     try {
-      const openRouterBody = {
+      const openRouterBody: Record<string, any> = {
         model: modelId,
+        ...(imageBase64 ? {
+          models: [
+            "google/gemma-3-27b-it:free",
+            "qwen/qwen2.5-vl-32b-instruct:free",
+            "openrouter/free"
+          ]
+        } : {}),
         messages: [
           { role: "system", content: sysPrompt },
           ...previousMessages,
@@ -94,7 +101,12 @@ export async function POST(req: NextRequest) {
             role: "user",
             content: imageBase64 
               ? [
-                  ...(content ? [{ type: "text", text: content }] : []),
+                  {
+                    type: "text",
+                    text: content?.trim()
+                      ? content
+                      : "Analisa e interpreta esta imagem em detalhe e responde de acordo com a tua personalidade."
+                  },
                   { type: "image_url", image_url: { url: imageBase64 } }
                 ]
               : content
