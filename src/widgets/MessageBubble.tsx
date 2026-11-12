@@ -1,7 +1,8 @@
-﻿"use client";
+"use client";
 
 import ReactMarkdown from "react-markdown";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { ImageViewer } from "@/features/image-viewer/ImageViewer";
 
 // Aceitar partial para nÃ£o quebrar a tipagem do temp message enquanto nÃ£o ligamos a BD
 interface MessageBubbleProps {
@@ -34,19 +35,23 @@ export function MessageBubble({ message, imageUrl }: MessageBubbleProps) {
           }`}
         >
           {imageUrl && (
-            <div className="mb-2">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img 
-                src={imageUrl} 
-                alt="Imagem carregada" 
-                className="max-h-64 rounded-md object-contain bg-black/10" 
-              />
+            <div className="mb-1">
+              <ImageViewer src={imageUrl} alt="Imagem carregada" />
             </div>
           )}
 
           {message.content && (
             <div className="prose prose-sm dark:prose-invert max-w-none break-words font-sans">
-              <ReactMarkdown>{message.content}</ReactMarkdown>
+              <ReactMarkdown
+                components={{
+                  img: ({ src, alt }) =>
+                    typeof src === "string" ? (
+                      <ImageViewer src={src} alt={alt || "Imagem"} />
+                    ) : null,
+                }}
+              >
+                {message.content}
+              </ReactMarkdown>
             </div>
           )}
         </div>

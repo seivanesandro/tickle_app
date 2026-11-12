@@ -15,9 +15,10 @@ import { createClient } from "@/shared/api/supabaseBrowser";
 interface ChatSidebarProps {
   chats: IChat[];
   onSelectChat?: () => void;
+  onUpdateChatMode?: (chatId: string, newMode: "intelectual" | "profissional" | "atrevido") => void;
 }
 
-export function ChatSidebar({ chats, onSelectChat }: ChatSidebarProps) {
+export function ChatSidebar({ chats, onSelectChat, onUpdateChatMode }: ChatSidebarProps) {
   const router = useRouter();
   const { activeChat, setActiveChat } = useChatStore();
   
@@ -62,10 +63,14 @@ export function ChatSidebar({ chats, onSelectChat }: ChatSidebarProps) {
   }
 
   async function handleModeChange(chatId: string, newMode: string) {
-    const { success, error } = await updateChatMode(chatId, newMode);
+    const typedMode = newMode as "intelectual" | "profissional" | "atrevido";
+    const { success, error } = await updateChatMode(chatId, typedMode);
     if (success) {
       if (activeChat?.id === chatId) {
-        setActiveChat({ ...activeChat, mode: newMode as "intelectual" | "profissional" | "atrevido" });
+        setActiveChat({ ...activeChat, mode: typedMode });
+      }
+      if (onUpdateChatMode) {
+        onUpdateChatMode(chatId, typedMode);
       }
       toast.success("Personality updated!");
     } else {
@@ -125,7 +130,7 @@ export function ChatSidebar({ chats, onSelectChat }: ChatSidebarProps) {
             
             <div onClick={(e) => e.stopPropagation()}>
               <Select 
-                defaultValue={chat.mode} 
+                value={chat.mode} 
                 onValueChange={(val) => handleModeChange(chat.id, val)}
               >
                 <SelectTrigger className="h-7 text-xs bg-background">

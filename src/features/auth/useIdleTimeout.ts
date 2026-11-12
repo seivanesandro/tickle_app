@@ -1,4 +1,4 @@
-﻿import { useEffect } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/shared/api/supabaseBrowser";
 import { toast } from "sonner";
@@ -10,8 +10,13 @@ export function useIdleTimeout(timeoutMinutes: number = 30) {
 
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
+    let lastReset = 0;
 
     const resetTimer = () => {
+      const now = Date.now();
+      if (now - lastReset < 1000) return;
+      lastReset = now;
+
       clearTimeout(timeoutId);
       // timeoutMinutes * 60 * 1000 converts minutes to milliseconds
       timeoutId = setTimeout(async () => {
@@ -28,7 +33,7 @@ export function useIdleTimeout(timeoutMinutes: number = 30) {
 
     // Initialize timer and add event listeners
     resetTimer();
-    events.forEach((event) => document.addEventListener(event, resetTimer));
+    events.forEach((event) => document.addEventListener(event, resetTimer, { passive: true }));
 
     // Cleanup
     return () => {

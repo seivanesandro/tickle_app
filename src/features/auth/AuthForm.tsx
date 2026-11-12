@@ -16,6 +16,7 @@ import { Loader2 } from "lucide-react";
 const authSchema = z.object({
   email: z.string().email("Please enter a valid email."),
   password: z.string().min(6, "Password must be at least 6 characters."),
+  confirmPassword: z.string().optional(),
 });
 
 type AuthFormValues = z.infer<typeof authSchema>;
@@ -31,12 +32,16 @@ export function AuthForm() {
     register,
     handleSubmit,
     getValues,
+    setValue,
+    setError,
+    clearErrors,
     formState: { errors },
   } = useForm<AuthFormValues>({
     resolver: zodResolver(authSchema),
     defaultValues: {
       email: "",
       password: "",
+      confirmPassword: "",
     },
   });
 
@@ -60,11 +65,25 @@ export function AuthForm() {
         toast.success("Successfully logged in!");
         router.push("/chat");
       } else {
+        if (!data.confirmPassword || data.confirmPassword.length < 6) {
+          setError("confirmPassword", {
+            message: "Please confirm your password (min. 6 characters).",
+          });
+          return;
+        }
+
+        if (data.password !== data.confirmPassword) {
+          setError("confirmPassword", {
+            message: "Passwords do not match.",
+          });
+          return;
+        }
+
         const { data: authData, error } = await supabase.auth.signUp({
           email: data.email,
           password: data.password,
           options: {
-            emailRedirectTo: `${window.location.origin}/chat`,
+            emailRedirectTo: `${window.location.origin}/login`,
           },
         });
 
@@ -82,8 +101,19 @@ export function AuthForm() {
           return;
         }
 
+        // Garantir que não fica nenhuma sessão ativa antes do login manual
+        if (authData.session) {
+          await supabase.auth.signOut();
+        }
+
+        // Limpar os campos de password e redirecionar imediatamente para a vista de Login
+        setValue("password", "");
+        setValue("confirmPassword", "");
+        clearErrors();
+        setIsLogin(true);
+
         toast.success("Check your email!", {
-          description: "We sent a confirmation link. Click it to enter the app.",
+          description: "We sent a confirmation link. Confirm your email and then log in.",
           duration: 8000,
         });
       }
@@ -172,6 +202,21 @@ export function AuthForm() {
           )}
         </div>
 
+        {!isLogin && (
+          <div className="space-y-2">
+            <Label htmlFor="confirmPassword">Confirm Password</Label>
+            <Input
+              id="confirmPassword"
+              type="password"
+              placeholder="••••••••"
+              {...register("confirmPassword")}
+            />
+            {errors.confirmPassword && (
+              <p className="text-sm text-red-500">{errors.confirmPassword.message}</p>
+            )}
+          </div>
+        )}
+
         <Button type="submit" className="w-full font-bold" disabled={isLoading}>
           {isLoading ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -186,7 +231,12 @@ export function AuthForm() {
       <div className="text-center text-sm mt-4">
         <button
           type="button"
-          onClick={() => setIsLogin(!isLogin)}
+          onClick={() => {
+            setIsLogin(!isLogin);
+            clearErrors();
+            setValue("password", "");
+            setValue("confirmPassword", "");
+          }}
           className="text-primary hover:underline"
         >
           {isLogin

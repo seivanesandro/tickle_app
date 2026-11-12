@@ -1,9 +1,9 @@
-﻿"use server";
+"use server";
 
 import { createClient } from "@/shared/api/supabaseServer";
 import { revalidatePath } from "next/cache";
 
-export async function createChat(mode: string) {
+export async function createChat(mode: string, title: string = "New Chat") {
   try {
     const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -11,13 +11,12 @@ export async function createChat(mode: string) {
 
     const { data, error } = await supabase
       .from("chats")
-      .insert({ user_id: user.id, mode: mode, title: "New Chat" })
+      .insert({ user_id: user.id, mode: mode, title })
       .select("id")
       .single();
 
     if (error || !data) return { success: false, error: error?.message || "Error creating chat." };
 
-    revalidatePath("/chat");
     return { success: true, id: data.id };
   } catch {
     return { success: false, error: "Internal server error." };

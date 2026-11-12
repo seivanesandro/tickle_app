@@ -42,7 +42,7 @@ export function ChatClient({ initialUser, initialChats }: ChatClientProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedMode, setSelectedMode] = useState<"intelectual" | "profissional" | "atrevido">("intelectual");
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const skipNextFetchRef = useRef(false);
+  const justCreatedChatIdRef = useRef<string | null>(null);
 
   // Inicializar Zustand stores no Client
   useEffect(() => {
@@ -66,13 +66,14 @@ export function ChatClient({ initialUser, initialChats }: ChatClientProps) {
   useEffect(() => {
     async function loadMessages() {
       if (!activeChat) {
+        justCreatedChatIdRef.current = null;
         setMessages([]);
         return;
       }
-      if (skipNextFetchRef.current) {
-        skipNextFetchRef.current = false;
+      if (justCreatedChatIdRef.current === activeChat.id) {
         return;
       }
+      justCreatedChatIdRef.current = null;
       const { data, error } = await supabase
         .from("messages")
         .select("*, message_images(storage_path)")
@@ -131,9 +132,12 @@ export function ChatClient({ initialUser, initialChats }: ChatClientProps) {
       imageUrl: imageBase64
     });
 
-    // 2. Criar a conversa na Base de Dados se ainda nÃ£o existir
+    // 2. Criar a conversa na Base de Dados se ainda não existir
     if (!currentChatId) {
-      const { success, id, error } = await createChat(currentMode);
+      const autoTitle = content?.trim()
+        ? content.trim().slice(0, 36) + (content.trim().length > 36 ? "..." : "")
+        : "Image Chat";
+      const { success, id, error } = await createChat(currentMode, autoTitle);
       if (!success || !id) {
         toast.error("Error creating new chat", { description: error });
         setIsSending(false);
@@ -141,10 +145,11 @@ export function ChatClient({ initialUser, initialChats }: ChatClientProps) {
       }
       currentChatId = id;
       
-      // Adiciona o novo chat Ã  barra lateral subtilmente
-      const newChat = { id, user_id: currentUser!.id, title: "New Chat", mode: currentMode as "intelectual", created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+      // Adiciona o novo chat à barra lateral subtilmente
+      const safeUserId = currentUser?.id || initialUser?.id || "";
+      const newChat = { id, user_id: safeUserId, title: autoTitle, mode: currentMode as "intelectual" | "profissional" | "atrevido", created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+      justCreatedChatIdRef.current = id;
       setChats(prev => [newChat, ...prev]);
-      skipNextFetchRef.current = true;
       setActiveChat(newChat);
     }
     
@@ -174,7 +179,24 @@ export function ChatClient({ initialUser, initialChats }: ChatClientProps) {
         toast.error("AI Error", { description: data.error || "Try again." });
       } else {
         // Adiciona a resposta real da BD e da IA ÃƒÂ  store
-        addMessage({ id: (Date.now() + 1).toString(), chat_id: currentChatId as string, role: "assistant", content: data.content, created_at: new Date().toISOString() });
+        addMessage({
+          id: (Date.now() + 1).toString(),
+          chat_id: currentChatId as string,
+          role: "assistant",
+          content: data.content,
+          created_at: new Date().toISOString(),
+          imageUrl: data.imageUrl || null,
+        });
+
+        if (data.imageRateLimited) {
+          toast.warning("Aguarda 45 segundos", {
+            description: "O gerador gratuito está em cooldown (1 imagem a cada 45s). Tenta novamente daqui a pouco.",
+          });
+        } else if (data.imageUrl) {
+          toast.info("Imagem gerada!", {
+            description: "Deves esperar 45 segundos para gerar uma nova imagem.",
+          });
+        }
       }
     } catch (err) {
       console.log('O erro gerado: ', err)
@@ -194,7 +216,12 @@ export function ChatClient({ initialUser, initialChats }: ChatClientProps) {
         <div className="flex h-[100dvh] w-full bg-background overflow-hidden font-sans">
           
           <div className="hidden md:flex h-full border-r">
-            <ChatSidebar chats={chats} />
+            <ChatSidebar
+              chats={chats}
+              onUpdateChatMode={(id, mode) =>
+                setChats((prev) => prev.map((c) => (c.id === id ? { ...c, mode } : c)))
+              }
+            />
           </div>
           
           <main className="flex-1 flex flex-col relative h-full max-w-full">
@@ -209,7 +236,13 @@ export function ChatClient({ initialUser, initialChats }: ChatClientProps) {
                   </SheetTrigger>
                   <SheetContent side="left" className="p-0 w-4/5" showCloseButton={false}>
                     <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
-                    <ChatSidebar chats={chats} onSelectChat={() => setIsSidebarOpen(false)} />
+                    <ChatSidebar
+                      chats={chats}
+                      onSelectChat={() => setIsSidebarOpen(false)}
+                      onUpdateChatMode={(id, mode) =>
+                        setChats((prev) => prev.map((c) => (c.id === id ? { ...c, mode } : c)))
+                      }
+                    />
                   </SheetContent>
                 </Sheet>
               </div>
