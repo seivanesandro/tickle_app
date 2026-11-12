@@ -86,18 +86,67 @@ export function ImageUploader({ imageBase64, onImageSelected, disabled }: ImageU
     startCamera(nextMode);
   };
 
+  const compressImageToBase64 = (dataUrl: string): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new window.Image();
+      img.onload = () => {
+        const MAX_DIM = 1024;
+        let width = img.width || 1024;
+        let height = img.height || 768;
+
+        if (width > MAX_DIM || height > MAX_DIM) {
+          if (width > height) {
+            height = Math.round((height * MAX_DIM) / width);
+            width = MAX_DIM;
+          } else {
+            width = Math.round((width * MAX_DIM) / height);
+            height = MAX_DIM;
+          }
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(dataUrl);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", 0.82));
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    });
+  };
+
   const handleCapturePhoto = () => {
     const video = videoRef.current;
     if (!video || !isCameraReady) return;
 
+    const rawW = video.videoWidth || 1280;
+    const rawH = video.videoHeight || 720;
+    const MAX_DIM = 1024;
+    let width = rawW;
+    let height = rawH;
+    if (width > MAX_DIM || height > MAX_DIM) {
+      if (width > height) {
+        height = Math.round((height * MAX_DIM) / width);
+        width = MAX_DIM;
+      } else {
+        width = Math.round((width * MAX_DIM) / height);
+        height = MAX_DIM;
+      }
+    }
+
     const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth || 1280;
-    canvas.height = video.videoHeight || 720;
+    canvas.width = width;
+    canvas.height = height;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const base64 = canvas.toDataURL("image/jpeg", 0.9);
+    ctx.drawImage(video, 0, 0, width, height);
+    const base64 = canvas.toDataURL("image/jpeg", 0.82);
 
     stopCameraStream();
     setCameraModalOpen(false);
@@ -119,9 +168,10 @@ export function ImageUploader({ imageBase64, onImageSelected, disabled }: ImageU
     }
 
     const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64 = event.target?.result as string;
-      onImageSelected(base64);
+    reader.onload = async (event) => {
+      const rawBase64 = event.target?.result as string;
+      const optimizedBase64 = await compressImageToBase64(rawBase64);
+      onImageSelected(optimizedBase64);
     };
     reader.readAsDataURL(file);
   };

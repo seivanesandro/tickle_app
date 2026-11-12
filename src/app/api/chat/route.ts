@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
       .order("created_at", { ascending: true })
       .limit(15);
       
-    const previousMessages = (history || [])
+    const filteredHistory = (history || [])
       .filter(msg => {
         if (msg.role === "assistant" && msg.content) {
           const lower = msg.content.toLowerCase();
@@ -88,6 +88,21 @@ export async function POST(req: NextRequest) {
         content: (msg.content || "(Image attachment)").replace(/\[Imagem enviada\]/gi, "").trim() || "..."
       }));
 
+    // Garantir alternância estrita user/assistant para não quebrar modelos gratuitos no OpenRouter
+    const previousMessages: { role: "user" | "assistant"; content: string }[] = [];
+    for (const msg of filteredHistory) {
+      if (previousMessages.length > 0 && previousMessages[previousMessages.length - 1].role === msg.role) {
+        previousMessages[previousMessages.length - 1] = msg;
+      } else {
+        previousMessages.push(msg);
+      }
+    }
+    // Se a última mensagem do histórico ficou como "user" (de uma tentativa anterior falhada),
+    // removemo-la do contexto para não ficar user -> user seguido da mensagem atual
+    if (previousMessages.length > 0 && previousMessages[previousMessages.length - 1].role === "user") {
+      previousMessages.pop();
+    }
+
     // 6. Inserir a mensagem do utilizador
     const { data: messageData, error: msgError } = await supabase
       .from("messages")
@@ -104,60 +119,71 @@ export async function POST(req: NextRequest) {
       typeof content === "string" &&
       /(?:cria|criar|gera|gerar|desenha|desenhar|faz|fazer|mostra|mostrar|manda|mandar|envia|enviar)\b.*(?:foto|imagem|fotografia|picture|image|retrato)/i.test(content);
 
-    // 7.5. Preparar Injeção do System Prompt e Escolha de Modelo OpenRouter
-    // NUNCA injetar a regra de geração de imagem quando o utilizador envia uma foto (Vision) ou conversa normalmente!
+    // 7.5. Preparar Injeção do System Prompt e Roteamento Inteligente OpenRouter
     const basePrompt = BASE_SYSTEM_PROMPTS[mode as keyof typeof BASE_SYSTEM_PROMPTS] || BASE_SYSTEM_PROMPTS.intelectual;
     const sysPrompt = userAskedForImage ? basePrompt + IMAGE_GENERATION_RULE : basePrompt;
-    const modelId = imageBase64 ? "google/gemma-3-27b-it:free" : "meta-llama/llama-3.1-8b-instruct";
     let aiResponseText = "";
 
-    // 8. Chamar o OpenRouter
-    try {
-      const openRouterBody: Record<string, any> = {
-        model: modelId,
-        ...(imageBase64 ? {
-          models: [
-            "google/gemma-3-27b-it:free",
-            "qwen/qwen2.5-vl-32b-instruct:free",
-            "openrouter/free"
-          ]
-        } : {}),
-        messages: [
-          { role: "system", content: sysPrompt },
-          ...previousMessages,
+    const userMessageContent = imageBase64
+      ? [
           {
-            role: "user",
-            content: imageBase64 
-              ? [
-                  {
-                    type: "text",
-                    text: content?.trim()
-                      ? `${content}\n\n(Responde apenas em texto diretamente ao utilizador de acordo com a tua personalidade, comentando a foto enviada. Não geres tags [IMAGE]).`
-                      : "Analisa e comenta esta imagem diretamente com o utilizador de acordo com a tua personalidade."
-                  },
-                  { type: "image_url", image_url: { url: imageBase64 } }
-                ]
-              : content
-          }
-        ],
-      };
+            type: "text",
+            text: content?.trim()
+              ? content
+              : "Analisa e interpreta esta imagem em detalhe e responde de acordo com a tua personalidade."
+          },
+          { type: "image_url", image_url: { url: imageBase64 } }
+        ]
+      : content;
 
-      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Authorization": "Bearer " + env.OPENROUTER_API_KEY,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(openRouterBody)
-      });
+    // 8. Chamar o OpenRouter:
+    // 1ª tentativa: "openrouter/free" ($0.00).
+    // Se a quota diária gratuita da conta ("free-models-per-day") tiver esgotado, faz fallback imediato
+    // para o modelo ultra-económico ativo ("google/gemma-3-27b-it" para visão / "meta-llama/llama-3.1-8b-instruct" para texto)
+    // para NUNCA mostrar erro de Rate Limit ao utilizador.
+    try {
+      let lastErrorMsg = "Erro desconhecido na API do OpenRouter";
+      let succeeded = false;
 
-      const data = await res.json();
-      
-      if (!res.ok) {
-        throw new Error(data?.error?.message || "Erro desconhecido na API do OpenRouter");
+      const fallbackModel = imageBase64 ? "google/gemma-3-27b-it" : "meta-llama/llama-3.1-8b-instruct";
+      const modelsToAttempt = ["openrouter/free", fallbackModel];
+
+      for (const currentModel of modelsToAttempt) {
+        const openRouterBody: Record<string, any> = {
+          model: currentModel,
+          messages: [
+            { role: "system", content: sysPrompt },
+            ...previousMessages,
+            {
+              role: "user",
+              content: userMessageContent
+            }
+          ],
+        };
+
+        const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": "Bearer " + env.OPENROUTER_API_KEY,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(openRouterBody)
+        });
+
+        const data = await res.json();
+
+        if (res.ok && data.choices?.[0]?.message?.content) {
+          aiResponseText = data.choices[0].message.content;
+          succeeded = true;
+          break;
+        } else {
+          lastErrorMsg = data?.error?.message || lastErrorMsg;
+        }
       }
 
-      aiResponseText = data.choices?.[0]?.message?.content || "";
+      if (!succeeded) {
+        throw new Error(lastErrorMsg);
+      }
     } catch (apiErr: any) {
       return NextResponse.json({ error: apiErr.message || "A IA demorou a responder ou rejeitou o pedido." }, { status: 500 });
     }
@@ -185,8 +211,6 @@ export async function POST(req: NextRequest) {
       if (aiRefused || !aiResponseText) {
         aiResponseText = "Aqui tens a imagem que pediste:";
       }
-    } else if (!aiResponseText) {
-      aiResponseText = " Gostei do que vi!";
     }
 
     if (finalImagePrompt) {
