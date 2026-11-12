@@ -1,9 +1,10 @@
-﻿"use client";
+"use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import TextareaAutosize from "react-textarea-autosize";
 import { Send, Loader2 } from "lucide-react";
 import { ImageUploader } from "@/features/image-uploader/ImageUploader";
+import { EmojiPicker } from "@/features/emoji-picker/EmojiPicker";
 import { Button } from "@/components/ui/button";
 
 interface ChatInputProps {
@@ -15,6 +16,24 @@ interface ChatInputProps {
 export function ChatInput({ onSendMessage, isLoading, disabled }: ChatInputProps) {
   const [content, setContent] = useState("");
   const [imageBase64, setImageBase64] = useState<string | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const handleEmojiSelect = (emoji: string) => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      const start = textarea.selectionStart ?? content.length;
+      const end = textarea.selectionEnd ?? content.length;
+      const nextContent = content.slice(0, start) + emoji + content.slice(end);
+      setContent(nextContent);
+      requestAnimationFrame(() => {
+        textarea.focus();
+        const cursor = start + emoji.length;
+        textarea.setSelectionRange(cursor, cursor);
+      });
+    } else {
+      setContent((prev) => prev + emoji);
+    }
+  };
 
   const handleSend = async () => {
     if ((!content.trim() && !imageBase64) || isLoading || disabled) return;
@@ -50,17 +69,22 @@ export function ChatInput({ onSendMessage, isLoading, disabled }: ChatInputProps
       )}
       
       <div className="flex items-end gap-2">
-        {!imageBase64 && (
-          <div className="pb-1">
+        <div className="flex items-center pb-1">
+          {!imageBase64 && (
             <ImageUploader 
               imageBase64={imageBase64} 
               onImageSelected={setImageBase64} 
               disabled={isLoading || disabled} 
             />
-          </div>
-        )}
+          )}
+          <EmojiPicker
+            onEmojiSelect={handleEmojiSelect}
+            disabled={isLoading || disabled}
+          />
+        </div>
         
         <TextareaAutosize
+          ref={textareaRef}
           minRows={1}
           maxRows={5}
           value={content}

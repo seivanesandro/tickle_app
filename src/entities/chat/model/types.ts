@@ -13,6 +13,7 @@ export interface IMessage {
   role: "user" | "assistant" | "system";
   content: string | null;
   created_at: string;
+  imageUrl?: string | null;
 }
 
 export interface IMessageImage {
