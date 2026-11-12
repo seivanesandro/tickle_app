@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2, MessageSquare, LogOut } from "lucide-react";
 import { IChat } from "@/entities/chat/model/types";
 import { useChatStore } from "@/entities/chat/model/store";
+import { useUserStore } from "@/entities/user/model/store";
 import { deleteChat, updateChatMode } from "@/entities/chat/actions";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -16,48 +16,49 @@ interface ChatSidebarProps {
   chats: IChat[];
   onSelectChat?: () => void;
   onUpdateChatMode?: (chatId: string, newMode: "intelectual" | "profissional" | "atrevido") => void;
+  onDeleteChat?: (chatId: string) => void;
+  onRestoreChat?: (chat: IChat) => void;
 }
 
-export function ChatSidebar({ chats, onSelectChat, onUpdateChatMode }: ChatSidebarProps) {
+export function ChatSidebar({
+  chats,
+  onSelectChat,
+  onUpdateChatMode,
+  onDeleteChat,
+  onRestoreChat,
+}: ChatSidebarProps) {
   const router = useRouter();
-  const { activeChat, setActiveChat } = useChatStore();
-  
-  // React Best Practice: Em vez de duplicar o array e usar useEffect (que causa cascading renders),
-  // guardamos apenas os IDs dos chats apagados de forma otimista.
-  const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
-
-  // Calculamos os chats visíveis durante o render
-  const visibleChats = chats.filter(chat => !deletedIds.has(chat.id));
+  const { activeChat, setActiveChat, clearChat } = useChatStore();
+  const { clearUser } = useUserStore();
 
   async function handleCreateChat() {
-    // Optimistic UI: apenas limpa o ecrã. A BD só grava quando houver mensagem.
-    setActiveChat(null);
+    // Limpa imediatamente a conversa ativa e as mensagens na store
+    clearChat();
     if (onSelectChat) onSelectChat();
   }
 
-  async function handleDeleteChat(id: string, e: React.MouseEvent) {
-    e.stopPropagation(); 
-    
-    // Optimistic UI Update: Apaga imediatamente adicionando ao set de apagados
-    setDeletedIds(prev => {
-      const next = new Set(prev);
-      next.add(id);
-      return next;
-    });
-    
-    if (activeChat?.id === id) setActiveChat(null);
+  async function handleDeleteChat(chatToDelete: IChat, e: React.MouseEvent) {
+    e.stopPropagation();
+    const id = chatToDelete.id;
+
+    // Remove imediatamente do estado pai (ChatClient) para nunca voltar a aparecer
+    if (onDeleteChat) {
+      onDeleteChat(id);
+    }
+
+    if (activeChat?.id === id) {
+      clearChat();
+    }
 
     const { success, error } = await deleteChat(id);
     if (success) {
       toast.success("Chat deleted.");
       router.refresh();
     } else {
-      // Reverte se der erro no servidor
-      setDeletedIds(prev => {
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
+      // Reverte apenas se der erro real no servidor
+      if (onRestoreChat) {
+        onRestoreChat(chatToDelete);
+      }
       toast.error("Error", { description: error });
     }
   }
@@ -82,7 +83,8 @@ export function ChatSidebar({ chats, onSelectChat, onUpdateChatMode }: ChatSideb
     try {
       const supabase = createClient();
       await supabase.auth.signOut();
-      setActiveChat(null);
+      clearChat();
+      clearUser();
       router.push("/login");
       router.refresh();
     } catch (err) {
@@ -104,7 +106,7 @@ export function ChatSidebar({ chats, onSelectChat, onUpdateChatMode }: ChatSideb
       </div>
 
       <div className="flex-1 overflow-y-auto py-2 px-3 space-y-2">
-        {visibleChats.map((chat) => (
+        {chats.map((chat) => (
           <div 
             key={chat.id} 
             className={cn("p-2 rounded-md border flex flex-col gap-2 cursor-pointer transition-colors", activeChat?.id === chat.id ? "bg-primary/10 border-primary" : "hover:bg-accent")}
@@ -122,7 +124,7 @@ export function ChatSidebar({ chats, onSelectChat, onUpdateChatMode }: ChatSideb
                 variant="ghost" 
                 size="icon" 
                 className="h-6 w-6 text-muted-foreground hover:text-red-500 shrink-0"
-                onClick={(e) => handleDeleteChat(chat.id, e)}
+                onClick={(e) => handleDeleteChat(chat, e)}
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
@@ -145,7 +147,7 @@ export function ChatSidebar({ chats, onSelectChat, onUpdateChatMode }: ChatSideb
             </div>
           </div>
         ))}
-        {visibleChats.length === 0 && (
+        {chats.length === 0 && (
           <p className="text-sm text-center text-muted-foreground mt-10 px-4">
             You have no chats yet.
           </p>

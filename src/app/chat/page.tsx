@@ -25,6 +25,7 @@ export default async function ChatPage() {
   const { data: chatsData } = await supabase
     .from("chats")
     .select("*")
+    .eq("user_id", user.id)
     .order("updated_at", { ascending: false });
 
   // 4. Pass Data to Client Component (Zero Loading Screen on Browser!)

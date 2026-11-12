@@ -221,6 +221,12 @@ export function ChatClient({ initialUser, initialChats }: ChatClientProps) {
               onUpdateChatMode={(id, mode) =>
                 setChats((prev) => prev.map((c) => (c.id === id ? { ...c, mode } : c)))
               }
+              onDeleteChat={(id) =>
+                setChats((prev) => prev.filter((c) => c.id !== id))
+              }
+              onRestoreChat={(restored) =>
+                setChats((prev) => [restored, ...prev.filter((c) => c.id !== restored.id)])
+              }
             />
           </div>
           
@@ -241,6 +247,12 @@ export function ChatClient({ initialUser, initialChats }: ChatClientProps) {
                       onSelectChat={() => setIsSidebarOpen(false)}
                       onUpdateChatMode={(id, mode) =>
                         setChats((prev) => prev.map((c) => (c.id === id ? { ...c, mode } : c)))
+                      }
+                      onDeleteChat={(id) =>
+                        setChats((prev) => prev.filter((c) => c.id !== id))
+                      }
+                      onRestoreChat={(restored) =>
+                        setChats((prev) => [restored, ...prev.filter((c) => c.id !== restored.id)])
                       }
                     />
                   </SheetContent>
