@@ -11,7 +11,7 @@ import { useIdleTimeout } from "@/features/auth/useIdleTimeout";
 import { ChatSidebar } from "@/widgets/ChatSidebar";
 import { ChatInput } from "@/features/chat-input/ChatInput";
 import { MessageBubble } from "@/widgets/MessageBubble";
-import { Loader2, Menu } from "lucide-react";
+import { Loader2, Menu, Lock } from "lucide-react";
 import { IChat, IMessage } from "@/entities/chat/model/types";
 import { IUser } from "@/entities/user/model/types";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -25,9 +25,10 @@ import { useRouter } from "next/navigation";
 interface ChatClientProps {
   initialUser: IUser | null;
   initialChats: IChat[];
+  initialDailyLimitReached?: boolean;
 }
 
-export function ChatClient({ initialUser, initialChats }: ChatClientProps) {
+export function ChatClient({ initialUser, initialChats, initialDailyLimitReached = false }: ChatClientProps) {
   const router = useRouter();
 
   // Singleton Pattern: Memorizar o cliente do Supabase para evitar instâncias duplicadas (Leak fix)
@@ -39,18 +40,19 @@ export function ChatClient({ initialUser, initialChats }: ChatClientProps) {
   // Iniciar o estado com as props que vÃªm do Server Component (0ms de espera)
   const [chats, setChats] = useState<IChat[]>(initialChats);
   const [isSending, setIsSending] = useState(false);
+  const [isDailyLimitReached, setIsDailyLimitReached] = useState<boolean>(initialDailyLimitReached);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedMode, setSelectedMode] = useState<"intelectual" | "profissional" | "atrevido">("intelectual");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const justCreatedChatIdRef = useRef<string | null>(null);
 
-  // Inicializar Zustand stores no Client
+  // Inicializar Zustand stores no Client sempre sincronizado com os dados frescos do servidor
   useEffect(() => {
-    if (initialUser && !currentUser) {
+    if (initialUser) {
       setCurrentUser(initialUser);
     }
     setLoading(false);
-  }, [initialUser, currentUser, setCurrentUser, setLoading]);
+  }, [initialUser, setCurrentUser, setLoading]);
 
   useRealtimeLimit(currentUser?.id);
 
@@ -114,7 +116,7 @@ export function ChatClient({ initialUser, initialChats }: ChatClientProps) {
   }, [activeChat, supabase, setMessages]);
 
   async function handleSendMessage(content: string, imageBase64: string | null) {
-    if (!content && !imageBase64) return;
+    if ((!content && !imageBase64) || isDailyLimitReached || currentUser?.is_locked) return;
     setIsSending(true);
 
     let currentChatId = activeChat?.id;
@@ -175,8 +177,17 @@ export function ChatClient({ initialUser, initialChats }: ChatClientProps) {
 
       const data = await res.json();
 
+      if (res.status === 429 || data?.dailyLimitReached) {
+        setIsDailyLimitReached(true);
+      }
+
       if (!res.ok) {
-        toast.error("AI Error", { description: data.error || "Try again." });
+        // Remover a mensagem otimista caso o envio tenha sido bloqueado (ex: limite diário atingido)
+        setMessages(messages.filter((m) => m.id !== tempId));
+        toast.error(
+          res.status === 429 ? "Limite diário atingido" : "AI Error",
+          { description: data.error || "Try again." }
+        );
       } else {
         // Adiciona a resposta real da BD e da IA ÃƒÂ  store
         addMessage({
@@ -399,11 +410,19 @@ export function ChatClient({ initialUser, initialChats }: ChatClientProps) {
               )}
             </div>
 
-            <div className="p-4 mx-auto w-full max-w-3xl">
+            <div className="p-4 mx-auto w-full max-w-3xl space-y-3">
+              {isDailyLimitReached && (
+                <div className="flex items-center justify-center gap-2.5 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-center text-sm font-medium text-destructive shadow-sm">
+                  <Lock className="h-4 w-4 shrink-0" />
+                  <span>
+                    Chegámos ao limite de mensagens gratuitas de hoje. Volta amanhã para mais mensagens, obrigado!
+                  </span>
+                </div>
+              )}
               <ChatInput 
                 onSendMessage={handleSendMessage} 
                 isLoading={isSending} 
-                disabled={currentUser?.is_locked} 
+                disabled={Boolean(currentUser?.is_locked) || isDailyLimitReached} 
               />
             </div>
           </main>

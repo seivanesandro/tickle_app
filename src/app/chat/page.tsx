@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/shared/api/supabaseServer";
+import { GLOBAL_DAILY_FREE_LIMIT, getGlobalDailyMessageCount } from "@/shared/api/supabaseAdmin";
 import { ChatClient } from "./ChatClient";
 
 export const dynamic = "force-dynamic";
@@ -28,11 +29,16 @@ export default async function ChatPage() {
     .eq("user_id", user.id)
     .order("updated_at", { ascending: false });
 
-  // 4. Pass Data to Client Component (Zero Loading Screen on Browser!)
+  // 4. Check Global Daily 50-Message Free Limit across all users today
+  const globalDailyCount = await getGlobalDailyMessageCount();
+  const initialDailyLimitReached = globalDailyCount >= GLOBAL_DAILY_FREE_LIMIT;
+
+  // 5. Pass Data to Client Component (Zero Loading Screen on Browser!)
   return (
     <ChatClient 
       initialUser={userData} 
-      initialChats={chatsData || []} 
+      initialChats={chatsData || []}
+      initialDailyLimitReached={initialDailyLimitReached}
     />
   );
 }

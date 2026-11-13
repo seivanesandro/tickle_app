@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/shared/api/supabaseServer";
+import { GLOBAL_DAILY_FREE_LIMIT, getGlobalDailyMessageCount } from "@/shared/api/supabaseAdmin";
 import { env } from "@/shared/config/env";
 
 const IMAGE_GENERATION_RULE = " CRITICAL RULE: The user is explicitly asking you to generate an image. You MUST end your reply with the exact tag [IMAGE: safe artistic fashion photography description in English]. Never forget the [IMAGE: ...] brackets.";
@@ -22,6 +23,18 @@ export async function POST(req: NextRequest) {
     // 2. Verificar se o utilizador tem a conta bloqueada
     const { data: userData } = await supabase.from("users").select("is_locked").eq("id", user.id).maybeSingle();
     if (userData?.is_locked) return NextResponse.json({ error: "Account locked." }, { status: 403 });
+
+    // 2.5. Verificar o Limite Diário Global de 50 mensagens gratuitas (soma de todos os utilizadores hoje)
+    const globalDailyCount = await getGlobalDailyMessageCount();
+    if (globalDailyCount >= GLOBAL_DAILY_FREE_LIMIT) {
+      return NextResponse.json(
+        {
+          error: "Chegámos ao limite de mensagens gratuitas de hoje. Volta amanhã para mais mensagens, obrigado!",
+          dailyLimitReached: true,
+        },
+        { status: 429 }
+      );
+    }
 
     // 3. Ler o body
     const body = await req.json();
@@ -272,12 +285,14 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 10. Devolver
+    // 10. Devolver (se esta foi a 50ª mensagem do dia, sinaliza dailyLimitReached = true para bloquear o input)
+    const reachedLimitNow = globalDailyCount + 1 >= GLOBAL_DAILY_FREE_LIMIT;
     return NextResponse.json({
       success: true,
       content: aiResponseText,
       imageUrl: generatedImageUrl,
       imageRateLimited,
+      dailyLimitReached: reachedLimitNow,
     });
 
   } catch {

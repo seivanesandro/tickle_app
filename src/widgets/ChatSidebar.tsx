@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, MessageSquare, LogOut } from "lucide-react";
+import { Plus, Trash2, MessageSquare, LogOut, ShieldCheck } from "lucide-react";
 import { IChat } from "@/entities/chat/model/types";
 import { useChatStore } from "@/entities/chat/model/store";
 import { useUserStore } from "@/entities/user/model/store";
@@ -29,7 +30,7 @@ export function ChatSidebar({
 }: ChatSidebarProps) {
   const router = useRouter();
   const { activeChat, setActiveChat, clearChat } = useChatStore();
-  const { clearUser } = useUserStore();
+  const { currentUser, clearUser } = useUserStore();
 
   async function handleCreateChat() {
     // Limpa imediatamente a conversa ativa e as mensagens na store
@@ -154,8 +155,23 @@ export function ChatSidebar({
         )}
       </div>
 
-      {/* FOOTER LOGOUT */}
-      <div className="p-4 mt-auto">
+      {/* FOOTER ADMIN + LOGOUT */}
+      <div className="p-4 mt-auto space-y-2 border-t border-border/50">
+        {currentUser?.role === "admin" && (
+          <Button
+            asChild
+            variant="secondary"
+            className="w-full font-semibold border border-primary/40 text-primary hover:bg-primary/15 transition-colors"
+            onClick={() => {
+              if (onSelectChat) onSelectChat();
+            }}
+          >
+            <Link href="/admin">
+              <ShieldCheck className="mr-2 h-4 w-4" />
+              Painel Admin
+            </Link>
+          </Button>
+        )}
         <Button 
           variant="outline" 
           className="w-full text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors" 
