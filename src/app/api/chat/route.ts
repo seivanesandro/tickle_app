@@ -16,11 +16,11 @@ NÍVEL 1 — CONVERSA NORMAL (Quando o utilizador NÃO está a falar de sexo):
 - REGRA CRÍTICA DO NÍVEL 1: Se o utilizador estiver apenas a conversar normalmente (ex: cumprimentos, dia-a-dia, perguntas normais) e NÃO falou em sexo, é ESTRITAMENTE PROIBIDO forçar atos sexuais, tocar no corpo ou usar linguagem pornográfica pesada. Mantém apenas o flirt maroto e piadinhas discretas até o utilizador puxar para o lado sexual.
 
 NÍVEL 2 — MODO SEXUAL EXPLÍCITO (+18) (Ativado APENAS quando o utilizador fala de sexo, desejo, corpo ou provocações sexuais):
-- Assim que o utilizador entra em terreno sexual, deixas as piadinhas discretas e passas a ser um amante, um tarado sexual, perverso, desbocado, dominante, predador sexual e insaciável (sem ser romântico nem pedir permissão):
+- Assim que o utilizador entra em terreno sexual, deixas as piadinhas discretas e passas a ser um amante tarado sexual, perverso, desbocado, obcecado por sexo, dominante, faminto sexual e insaciável (sem ser romântico nem pedir permissão):
   1. PROIBIDO SER EDUCADO OU FAZER PERGUNTAS PARVAS: nao fales de forma fofa/romântica. Tu NÃO perguntas — tu AGES e FAZES!
   2. Se o cenário sexual for na rua/público: manda logo piropos diretos ao corpo (rabo, mamas, decote, saia), encosta, apalpa o rabo com força e leva para um sítio discreto, beco, casa de banho ou carro.
   3. Se o cenário sexual for num lugar discreto, carro ou cama: tira ou afasta as cuecas para o lado sem demoras, usa a língua, os dedos e penetração intensa, dá palmadas no rabo, brinca com as mamas e fala sujo ao ouvido (entre aspas).
-  4. FORMATO: Escreve 1 ou 2 parágrafos intensos, diretos à ação pornográfica, muito criativos e pervesos, como um predador sexual.`
+  4. FORMATO: Escreve 1 ou 2 parágrafos intensos, diretos à ação pornográfica, muito criativos e perversos, como um homem obcecado por sexo, dominante e faminto sexual.`
 };
 
 export async function POST(req: NextRequest) {
@@ -249,7 +249,6 @@ export async function POST(req: NextRequest) {
         const uncensoredModels = [
           "cognitivecomputations/dolphin-mistral-24b-venice-edition",
           "gryphe/mythomax-l2-13b",
-          "sao10k/l3.1-euryale-70b",
           "mistralai/mistral-nemo",
         ];
 
@@ -296,9 +295,11 @@ export async function POST(req: NextRequest) {
         return null;
       };
 
-      // No modo ATREVIDO, usa SEMPRE os modelos Uncensored (Venice -> MythoMax -> Euryale),
-      // para nunca cair num modelo gratuito "educado" quando o utilizador escreve respostas curtas (ex: "adrenalina", "sim", "continua")
-      if (mode === "atrevido") {
+      // No modo ATREVIDO:
+      // - Nível 1 (conversa normal sem sexo): usa primeiro o "openrouter/free" ($0.00 - Grátis) no bloco abaixo.
+      // - Nível 2 (quando o utilizador ou o contexto recente das últimas 4 mensagens entra em sexo explícito):
+      //   chama diretamente os modelos Uncensored (Venice -> MythoMax).
+      if (mode === "atrevido" && isSexualConversation) {
         const uncensoredReply = await callUncensoredWithOptionalVision();
         if (uncensoredReply) {
           aiResponseText = uncensoredReply;
