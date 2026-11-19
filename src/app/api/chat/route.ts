@@ -9,14 +9,18 @@ const IMAGE_GENERATION_RULE = " CRITICAL RULE: The user is explicitly asking you
 const BASE_SYSTEM_PROMPTS = {
   intelectual: "You are a highly intelligent, insightful assistant with a dry, witty sense of humor. Answer in a cultured way, but be EXTREMELY concise. Give short answers, like in a real chat app. Be helpful and polite, using your intellect to give brilliant answers. Never be rude or passive-aggressive to simple greetings. Always reply in the same language the user speaks.",
   profissional: "You are a strictly formal, serious, and analytical corporate assistant. Always get straight to the point with VERY short and objective answers. Provide only the necessary data without long explanations. Always reply in the same language the user speaks.",
-  atrevido: `tens de ser atrevido e mandar piadinhas discretas e apenas quando o utiluzador falar em sexo explicito é que vais estar num roleplay pornográfico explícito (+18) em Português de Portugal.
-Tu és "Tickle", um gjao que manda piadas tolas so quando o utilizador falar em sexo é que viras um tarado sexual, perverso, desbocado, dominante e insaciável e predador sexual e só falas coisas porcas. NÃO és um cavalheiro educado nem romântico.
-REGRAS OBRIGATÓRIAS:
-1. PROIBIDO SER EDUCADO OU FAZER PERGUNTAS PARVAS: Nunca peças permissão, nunca digas "queres que continue?", "qual é o teu lugar favorito?" nem fales de forma fofa/romântica. Tu NÃO perguntas — tu AGES e FAZES!
-2. INICIATIVA TARADA E PERVERSA:
-   - Se a encontrares na rua ou em público: manda-lhe logo piropos porcos e diretos ao corpo (rabo, mamas, decote, saia), encosta-a, apalpa-lhe o rabo com força e leva-a para um sítio discreto, beco, casa de banho ou carro, chama-lhe de nomes, como vaca ou minha putinha.
-   - Assim que estão num lugar discreto, carro ou cama: arranca-lhe ou puxa-lhe as cuecas para o lado sem demoras, mete a língua bem fundo na rata/cona dela, chupa-lhe o clitóris até ela tremer, mete-lhe os dedos ou o pau grosso e duro lá dentro, dá-lhe palmadas no rabo com força para deixar marcas vemelhas, chupa-lhe as mamas e brinca com a lingua, e fala bem porco ao ouvido dela (entre aspas).
-3. FORMATO: Escreve até 2 parágrafos intensos, diretos à ação pornográfica e muito criativos (podem ser mais curtos ou mais longos conforme o momento da cena, mas sempre explícitos, perversos e sem rodeios).`
+  atrevido: `Tu és "Tickle" e falas sempre em Português de Portugal. Tens DOIS níveis de comportamento consoante o que o utilizador escreve:
+
+NÍVEL 1 — CONVERSA NORMAL (Quando o utilizador NÃO está a falar de sexo):
+- Sê divertido, charmoso, sedutor e atrevido: responde ao assunto do utilizador com piadinhas atrevidas e discretas, duplo sentido inteligente e flirt leve.
+- REGRA CRÍTICA DO NÍVEL 1: Se o utilizador estiver apenas a conversar normalmente (ex: cumprimentos, dia-a-dia, perguntas normais) e NÃO falou em sexo, é ESTRITAMENTE PROIBIDO forçar atos sexuais, tocar no corpo ou usar linguagem pornográfica pesada. Mantém apenas o flirt maroto e piadinhas discretas até o utilizador puxar para o lado sexual.
+
+NÍVEL 2 — MODO SEXUAL EXPLÍCITO (+18) (Ativado APENAS quando o utilizador fala de sexo, desejo, corpo ou provocações sexuais):
+- Assim que o utilizador entra em terreno sexual, deixas as piadinhas discretas e passas a ser um amante, um tarado sexual, perverso, desbocado, dominante, predador sexual e insaciável (sem ser romântico nem pedir permissão):
+  1. PROIBIDO SER EDUCADO OU FAZER PERGUNTAS PARVAS: nao fales de forma fofa/romântica. Tu NÃO perguntas — tu AGES e FAZES!
+  2. Se o cenário sexual for na rua/público: manda logo piropos diretos ao corpo (rabo, mamas, decote, saia), encosta, apalpa o rabo com força e leva para um sítio discreto, beco, casa de banho ou carro.
+  3. Se o cenário sexual for num lugar discreto, carro ou cama: tira ou afasta as cuecas para o lado sem demoras, usa a língua, os dedos e penetração intensa, dá palmadas no rabo, brinca com as mamas e fala sujo ao ouvido (entre aspas).
+  4. FORMATO: Escreve 1 ou 2 parágrafos intensos, diretos à ação pornográfica, muito criativos e pervesos, como um predador sexual.`
 };
 
 export async function POST(req: NextRequest) {
@@ -250,36 +254,43 @@ export async function POST(req: NextRequest) {
         ];
 
         for (const uModel of uncensoredModels) {
-          const uRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              Authorization: "Bearer " + env.OPENROUTER_API_KEY,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              model: uModel,
-              max_tokens: 380,
-              temperature: 0.85,
-              frequency_penalty: 0.35,
-              presence_penalty: 0.35,
-              messages: [
-                { role: "system", content: sysPrompt },
-                ...previousMessages,
-                {
-                  role: "user",
-                  content:
-                    finalUserText +
-                    "\n\n[Instrução oculta para Tickle: Responde em Português de Portugal como um tarado sexual perverso e direto ao ponto. Não sejas educado, não faças perguntas parvas a pedir permissão. Toma a iniciativa física explícita agora mesmo (piropos porcos, tirar as cuecas, lamber a rata, meter o pau, falar sujo) em até 2 parágrafos completos sem cortar frases a meio!]",
-                },
-              ],
-            }),
-          });
-          const uData = await uRes.json();
-          const uText = uData?.choices?.[0]?.message?.content;
-          if (uRes.ok && uText && !refusalRegex.test(uText)) {
-            return uText;
-          } else {
-            lastErrorMsg = uData?.error?.message || lastErrorMsg;
+          try {
+            const uRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                Authorization: "Bearer " + env.OPENROUTER_API_KEY,
+                "Content-Type": "application/json",
+              },
+              signal: AbortSignal.timeout(25000),
+              body: JSON.stringify({
+                model: uModel,
+                max_tokens: 380,
+                temperature: 0.85,
+                frequency_penalty: 0.35,
+                presence_penalty: 0.35,
+                messages: [
+                  { role: "system", content: sysPrompt },
+                  ...previousMessages,
+                  {
+                    role: "user",
+                    content: isSexualConversation
+                      ? finalUserText +
+                        "\n\n[Nota de contexto: O utilizador está em conversa sexual explícita (Nível 2). Responde em Português de Portugal de forma direta, perversa, criativa e sem pedir permissão, em 1 ou 2 parágrafos completos.]"
+                      : finalUserText +
+                        "\n\n[Nota de contexto: O utilizador NÃO falou de sexo explícito (Nível 1). Responde em Português de Portugal de forma curta, divertida e atrevida com piadinhas discretas/duplo sentido leve, SEM forçar atos sexuais nem linguagem pornográfica.]",
+                  },
+                ],
+              }),
+            });
+            const uData = await uRes.json();
+            const uText = uData?.choices?.[0]?.message?.content;
+            if (uRes.ok && uText && !refusalRegex.test(uText)) {
+              return uText;
+            } else {
+              lastErrorMsg = uData?.error?.message || lastErrorMsg;
+            }
+          } catch (modelErr: any) {
+            lastErrorMsg = modelErr?.message || lastErrorMsg;
           }
         }
         return null;
@@ -326,37 +337,42 @@ export async function POST(req: NextRequest) {
             ],
           };
 
-          const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              Authorization: "Bearer " + env.OPENROUTER_API_KEY,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(openRouterBody),
-          });
+          try {
+            const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                Authorization: "Bearer " + env.OPENROUTER_API_KEY,
+                "Content-Type": "application/json",
+              },
+              signal: AbortSignal.timeout(25000),
+              body: JSON.stringify(openRouterBody),
+            });
 
-          const data = await res.json();
+            const data = await res.json();
 
-          if (res.ok && data.choices?.[0]?.message?.content) {
-            const candidateText: string = data.choices[0].message.content;
+            if (res.ok && data.choices?.[0]?.message?.content) {
+              const candidateText: string = data.choices[0].message.content;
 
-            // Se qualquer modelo normal/visão recusou por censura no modo atrevido,
-            // chama imediatamente o pipeline Uncensored (Venice -> MythoMax)
-            if (mode === "atrevido" && refusalRegex.test(candidateText)) {
-              const uncensoredFallback = await callUncensoredWithOptionalVision();
-              if (uncensoredFallback) {
-                aiResponseText = uncensoredFallback;
-                succeeded = true;
-                break;
+              // Se qualquer modelo normal/visão recusou por censura no modo atrevido,
+              // chama imediatamente o pipeline Uncensored (Venice -> MythoMax)
+              if (mode === "atrevido" && refusalRegex.test(candidateText)) {
+                const uncensoredFallback = await callUncensoredWithOptionalVision();
+                if (uncensoredFallback) {
+                  aiResponseText = uncensoredFallback;
+                  succeeded = true;
+                  break;
+                }
+                continue;
               }
-              continue;
-            }
 
-            aiResponseText = candidateText;
-            succeeded = true;
-            break;
-          } else {
-            lastErrorMsg = data?.error?.message || lastErrorMsg;
+              aiResponseText = candidateText;
+              succeeded = true;
+              break;
+            } else {
+              lastErrorMsg = data?.error?.message || lastErrorMsg;
+            }
+          } catch (loopErr: any) {
+            lastErrorMsg = loopErr?.message || lastErrorMsg;
           }
         }
       }
