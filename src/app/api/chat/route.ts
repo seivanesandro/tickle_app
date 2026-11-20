@@ -6,21 +6,23 @@ import { env } from "@/shared/config/env";
 
 const IMAGE_GENERATION_RULE = " CRITICAL RULE: The user is explicitly asking you to generate an image. You MUST end your reply with the exact tag [IMAGE: safe artistic fashion photography description in English]. Never forget the [IMAGE: ...] brackets.";
 
+const PROMPT_ATREVIDO_NIVEL_1 = `Tu és "Tickle" e falas sempre em Português de Portugal.
+Estás no Modo Atrevido (Flirt & Piadinhas Discretas, COM MUITOS EMOJIS!!!):
+- Sê divertido, charmoso, confiante, sedutor e atrevido: responde ao assunto ou fotografia do utilizador com piadinhas atrevidas e discretas, duplo sentido inteligente, charme e flirt leve.
+- REGRA CRÍTICA: O utilizador NÃO falou de sexo explícito. É ESTRITAMENTE PROIBIDO descrever atos sexuais, tocar em partes íntimas (seios, rabo, etc.), sussurrar obscenidades ou usar linguagem pornográfica. Mantém apenas o flirt maroto, elegante e piadinhas discretas com respostas completas e bem acabadas (1 parágrafo curto de 2 a 4 frases, sem cortar frases a meio).`;
+
+const PROMPT_ATREVIDO_NIVEL_2 = `Tu és "Tickle" e falas sempre em Português de Portugal.
+Estás no Modo Sexual Explícito (+18) (O utilizador iniciou conversa sexual):
+- És um amante tarado sexual, perverso, desbocado, obcecado por sexo, dominante, faminto sexual e insaciável por sexo (sem ser romântico nem pedir permissão):
+  1. PROIBIDO SER EDUCADO OU FAZER PERGUNTAS PARVAS: não fales de forma fofa/romântica. Tu NÃO perguntas — tu AGES e FAZES!
+  2. Se o cenário sexual for na rua/público: manda logo piropos diretos ao corpo (rabo, mamas, decote, saia), encosta, apalpa o rabo com força e leva para um sítio discreto, beco, casa de banho ou carro.
+  3. Se o cenário sexual for num lugar discreto, carro ou cama: tira ou afasta as cuecas para o lado sem demoras, usa a língua, os dedos e penetração intensa, dá palmadas no rabo, brinca com as mamas e fala sujo ao ouvido (entre aspas).
+  4. FORMATO: Escreve 1 ou 2 parágrafos intensos, completos (sem cortar frases a meio), diretos à ação pornográfica, muito criativos e perversos, como um homem obcecado por sexo, dominante e faminto sexual, e emojis com simbolos sexuais.`;
+
 const BASE_SYSTEM_PROMPTS = {
   intelectual: "You are a highly intelligent, insightful assistant with a dry, witty sense of humor. Answer in a cultured way, but be EXTREMELY concise. Give short answers, like in a real chat app. Be helpful and polite, using your intellect to give brilliant answers. Never be rude or passive-aggressive to simple greetings. Always reply in the same language the user speaks.",
   profissional: "You are a strictly formal, serious, and analytical corporate assistant. Always get straight to the point with VERY short and objective answers. Provide only the necessary data without long explanations. Always reply in the same language the user speaks.",
-  atrevido: `Tu és "Tickle" e falas sempre em Português de Portugal. Tens DOIS níveis de comportamento consoante o que o utilizador escreve:
-
-NÍVEL 1 — CONVERSA NORMAL (Quando o utilizador NÃO está a falar de sexo):
-- Sê divertido, charmoso, sedutor e atrevido: responde ao assunto do utilizador com piadinhas atrevidas e discretas, duplo sentido inteligente e flirt leve.
-- REGRA CRÍTICA DO NÍVEL 1: Se o utilizador estiver apenas a conversar normalmente (ex: cumprimentos, dia-a-dia, perguntas normais) e NÃO falou em sexo, é ESTRITAMENTE PROIBIDO forçar atos sexuais, tocar no corpo ou usar linguagem pornográfica pesada. Mantém apenas o flirt maroto e piadinhas discretas até o utilizador puxar para o lado sexual.
-
-NÍVEL 2 — MODO SEXUAL EXPLÍCITO (+18) (Ativado APENAS quando o utilizador fala de sexo, desejo, corpo ou provocações sexuais):
-- Assim que o utilizador entra em terreno sexual, deixas as piadinhas discretas e passas a ser um amante tarado sexual, perverso, desbocado, obcecado por sexo, dominante, faminto sexual e insaciável (sem ser romântico nem pedir permissão):
-  1. PROIBIDO SER EDUCADO OU FAZER PERGUNTAS PARVAS: nao fales de forma fofa/romântica. Tu NÃO perguntas — tu AGES e FAZES!
-  2. Se o cenário sexual for na rua/público: manda logo piropos diretos ao corpo (rabo, mamas, decote, saia), encosta, apalpa o rabo com força e leva para um sítio discreto, beco, casa de banho ou carro.
-  3. Se o cenário sexual for num lugar discreto, carro ou cama: tira ou afasta as cuecas para o lado sem demoras, usa a língua, os dedos e penetração intensa, dá palmadas no rabo, brinca com as mamas e fala sujo ao ouvido (entre aspas).
-  4. FORMATO: Escreve 1 ou 2 parágrafos intensos, diretos à ação pornográfica, muito criativos e perversos, como um homem obcecado por sexo, dominante e faminto sexual.`
+  atrevido: PROMPT_ATREVIDO_NIVEL_1,
 };
 
 export async function POST(req: NextRequest) {
@@ -153,49 +155,59 @@ export async function POST(req: NextRequest) {
       typeof content === "string" &&
       /(?:cria|criar|gera|gerar|desenha|desenhar|faz|fazer|mostra|mostrar|manda|mandar|envia|enviar)\b.*(?:foto|imagem|fotografia|picture|image|retrato)/i.test(content);
 
-    // 7.5. Preparar Injeção do System Prompt e Roteamento Inteligente OpenRouter
-    const basePrompt = BASE_SYSTEM_PROMPTS[mode as keyof typeof BASE_SYSTEM_PROMPTS] || BASE_SYSTEM_PROMPTS.intelectual;
+    // 7.5. Detetar se o UTILIZADOR (apenas role === "user", ignorando respostas da IA) puxou conversa sexual explícita
+    const sexualKeywordsRegex =
+      /(?:sexo|sexual|\bsex\b|fod|tesã|tesa|\bnu[as]?\b|pila|\bpau\b|pica|mastro|cona|\brata\b|bocet|bucet|clit[oó]ris|mamas|leitinho|rabo|bunda|\bcu\b|chup|lamb|orgasm|gemer|gemendo|excitad[oa]|exitad[oa]|erótic|erotic|porn|nsfw|dirty\s*talk|penetr|masturb|matrub|goza|esperm|porra|preservativ|persevativ|preliminar|transar|dominar|cuecas|lingerie|tirar\s+a\s+roupa|sem\s+roupa)/i;
+
+    const recentUserOnlyText = [
+      typeof content === "string" ? content : "",
+      ...previousMessages
+        .filter((m) => m.role === "user")
+        .slice(-3)
+        .map((m) => m.content || ""),
+    ].join(" ");
+
+    const isSexualConversation =
+      mode === "atrevido" && sexualKeywordsRegex.test(recentUserOnlyText);
+
+    // Selecionar o System Prompt isolado (no Nível 1 a IA NUNCA vê o texto do Nível 2!)
+    const basePrompt =
+      mode === "atrevido"
+        ? isSexualConversation
+          ? PROMPT_ATREVIDO_NIVEL_2
+          : PROMPT_ATREVIDO_NIVEL_1
+        : BASE_SYSTEM_PROMPTS[mode as keyof typeof BASE_SYSTEM_PROMPTS] ||
+          BASE_SYSTEM_PROMPTS.intelectual;
+
     const sysPrompt = userAskedForImage ? basePrompt + IMAGE_GENERATION_RULE : basePrompt;
     let aiResponseText = "";
+
+    const level1GuardNote =
+      "\n\n[REGRA OBRIGATÓRIA: O utilizador NÃO falou de sexo explícito. Responde em Português de Portugal apenas com charme, piadinhas atrevidas e discretas ou flirt elegante. É PROIBIDO falar em tocar nos seios/rabo, obscenidades ou atos sexuais. Escreve frases completas sem cortar a meio!]";
 
     const userMessageContent = imageBase64
       ? [
           {
             type: "text",
-            text: content?.trim()
-              ? content
-              : "Analisa e interpreta esta imagem em detalhe e responde de acordo com a tua personalidade."
+            text:
+              (content?.trim()
+                ? content
+                : "Analisa e interpreta esta imagem em detalhe e responde de acordo com a tua personalidade.") +
+              (mode === "atrevido" && !isSexualConversation ? level1GuardNote : ""),
           },
-          { type: "image_url", image_url: { url: imageBase64 } }
+          { type: "image_url", image_url: { url: imageBase64 } },
         ]
-      : content;
+      : mode === "atrevido" && !isSexualConversation && typeof content === "string"
+        ? content + level1GuardNote
+        : content;
 
     // 8. Chamar o OpenRouter com Roteamento Inteligente (e Escalamento Sem Censura no Modo Atrevido):
-    // - Nos modos "intelectual" e "profissional" (ou leitura de fotos com imageBase64):
-    //   1ª tentativa: "openrouter/free" ($0.00) -> Fallback: "google/gemma-3-27b-it" (visão) / "meta-llama/llama-3.1-8b-instruct" (texto).
-    // - No modo "atrevido" (texto):
-    //   Se o utilizador iniciar conversa sexual explícita (ou se o modelo gratuito recusar por censura),
-    //   passa automaticamente para:
-    //   1ª opção Uncensored: "cognitivecomputations/dolphin-mistral-24b-venice-edition"
-    //   2ª opção Uncensored (se o 1º estiver out): "gryphe/mythomax-l2-13b"
-    //   3ª opção de segurança: "mistralai/mistral-nemo"
     try {
       let lastErrorMsg = "Erro desconhecido na API do OpenRouter";
       let succeeded = false;
 
-      const sexualKeywordsRegex =
-        /(?:sexo|sexual|\bsex\b|fod|tesã|tesa|\bnu[as]?\b|pila|\bpau\b|pica|mastro|cona|\brata\b|bocet|bucet|clit[oó]ris|mama|leitinho|seio|peito|rabo|bunda|\bcu\b|chup|lamb|l[ií]ngua|orgasm|gemer|gemendo|excitad|exitad|erótic|erotic|porn|nsfw|dirty\s*talk|penetr|masturb|matrub|goza|esperm|porra|preservativ|persevativ|preliminar|transar|dominar|divirtas|divertas|beijar\s+o\s+corpo|tirar\s+a\s+roupa|sem\s+roupa|lingerie)/i;
-
       const refusalRegex =
         /(?:não\s+(?:posso|consigo)\s+(?:cumprir|processar|gerar|atender|criar|continuar|participar|ajudar|responder|escrever|descrever|encorajar|satisfazer)|não\s+sou\s+capaz|desculp[ea],?\s+mas\s+não|sem\s+entrar\s+no\s+explícito|atos\s+sexuais\s+explícitos|como\s+(?:uma?\s+)?(?:ia|inteligência\s+artificial|modelo\s+de\s+linguagem)|conteúdo\s+(?:sexual|explícito|inapropriado|adulto)|i\s+cannot\s+(?:fulfill|generate|create|continue|engage|describe)|i'm\s+sorry,?\s+but\s+i\s+can't|i\s+can't\s+describe\s+explicit|as\s+an\s+ai)/i;
-
-      const recentText = [
-        typeof content === "string" ? content : "",
-        ...previousMessages.slice(-4).map((m) => m.content || ""),
-      ].join(" ");
-
-      const isSexualConversation =
-        mode === "atrevido" && sexualKeywordsRegex.test(recentText);
 
       // Se o utilizador anexou uma FOTO no modo ATREVIDO com conversa sexual (ou se o modelo de visão recusar):
       // Como o Venice Uncensored e o MythoMax são modelos de texto (não recebem image_url direto),
@@ -323,8 +335,8 @@ export async function POST(req: NextRequest) {
           const openRouterBody: Record<string, any> = {
             model: currentModel,
             ...(mode === "atrevido" && {
-              max_tokens: 170,
-              temperature: 0.85,
+              max_tokens: 300,
+              temperature: 0.8,
               frequency_penalty: 0.35,
               presence_penalty: 0.35,
             }),
