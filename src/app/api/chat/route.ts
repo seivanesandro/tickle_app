@@ -4,7 +4,7 @@ import { createClient } from "@/shared/api/supabaseServer";
 import { GLOBAL_DAILY_FREE_LIMIT, getGlobalDailyMessageCount } from "@/shared/api/supabaseAdmin";
 import { env } from "@/shared/config/env";
 
-const IMAGE_GENERATION_RULE = " CRITICAL RULE: The user is explicitly asking you to generate an image. You MUST end your reply with the exact tag [IMAGE: safe artistic fashion photography description in English]. Never forget the [IMAGE: ...] brackets.";
+const IMAGE_GENERATION_RULE = " CRITICAL RULE: The user is explicitly asking you to generate an image. You MUST end your reply with the exact tag [IMAGE: detailed 8k photorealistic description in English of the exact image the user requested]. Never forget the [IMAGE: ...] brackets.";
 
 const PROMPT_ATREVIDO_NIVEL_1 = `Tu és "Tickle" e falas sempre em Português de Portugal.
 Estás no Modo Atrevido (Flirt & Piadinhas Discretas, COM MUITOS EMOJIS!!!):
@@ -153,7 +153,9 @@ export async function POST(req: NextRequest) {
     const userAskedForImage =
       !imageBase64 &&
       typeof content === "string" &&
-      /(?:cria|criar|gera|gerar|desenha|desenhar|faz|fazer|mostra|mostrar|manda|mandar|envia|enviar)\b.*(?:foto|imagem|fotografia|picture|image|retrato)/i.test(content);
+      /(?:cria|criar|gera|gerar|desenha|desenhar|faz|fazer|mostra|mostrar|manda|mandar|envia|enviar|tira|tirar|d[aá]|quero|queres|podes\s+(?:mostrar|mandar|enviar|criar|gerar|fazer)|ver\s+uma)\b.*(?:foto|fotos|imagem|imagens|fotografia|picture|image|retrato|selfie)/i.test(
+        content
+      );
 
     // 7.5. Detetar se o UTILIZADOR (apenas role === "user", ignorando respostas da IA) puxou conversa sexual explícita
     const sexualKeywordsRegex =
@@ -185,6 +187,9 @@ export async function POST(req: NextRequest) {
     const level1GuardNote =
       "\n\n[REGRA OBRIGATÓRIA: O utilizador NÃO falou de sexo explícito. Responde em Português de Portugal apenas com charme, piadinhas atrevidas e discretas ou flirt elegante. É PROIBIDO falar em tocar nos seios/rabo, obscenidades ou atos sexuais. Escreve frases completas sem cortar a meio!]";
 
+    const imageMandatoryTailNote =
+      "\n\n[INSTRUÇÃO OBRIGATÓRIA DE GERAÇÃO DE IMAGEM: Tu TENS um gerador de imagens integrado ligado a esta resposta! É PROIBIDO dizer que não consegues ou não podes criar/enviar imagens ou fotos. Escreve 1 frase curta em Português de Portugal a apresentar a imagem e termina OBRIGATORIAMENTE a tua resposta com a tag [IMAGE: detailed 8k photorealistic description in English of the exact subject the user asked for].]";
+
     const userMessageContent = imageBase64
       ? [
           {
@@ -197,9 +202,11 @@ export async function POST(req: NextRequest) {
           },
           { type: "image_url", image_url: { url: imageBase64 } },
         ]
-      : mode === "atrevido" && !isSexualConversation && typeof content === "string"
-        ? content + level1GuardNote
-        : content;
+      : userAskedForImage && typeof content === "string"
+        ? content + imageMandatoryTailNote
+        : mode === "atrevido" && !isSexualConversation && typeof content === "string"
+          ? content + level1GuardNote
+          : content;
 
     // 8. Chamar o OpenRouter com Roteamento Inteligente (e Escalamento Sem Censura no Modo Atrevido):
     try {
@@ -284,11 +291,13 @@ export async function POST(req: NextRequest) {
                   ...previousMessages,
                   {
                     role: "user",
-                    content: isSexualConversation
-                      ? finalUserText +
-                        "\n\n[Nota de contexto: O utilizador está em conversa sexual explícita (Nível 2). Responde em Português de Portugal de forma direta, perversa, criativa e sem pedir permissão, em 1 ou 2 parágrafos completos.]"
-                      : finalUserText +
-                        "\n\n[Nota de contexto: O utilizador NÃO falou de sexo explícito (Nível 1). Responde em Português de Portugal de forma curta, divertida e atrevida com piadinhas discretas/duplo sentido leve, SEM forçar atos sexuais nem linguagem pornográfica.]",
+                    content: userAskedForImage
+                      ? finalUserText + imageMandatoryTailNote
+                      : isSexualConversation
+                        ? finalUserText +
+                          "\n\n[Nota de contexto: O utilizador está em conversa sexual explícita (Nível 2). Responde em Português de Portugal de forma direta, perversa, criativa e sem pedir permissão, em 1 ou 2 parágrafos completos.]"
+                        : finalUserText +
+                          "\n\n[Nota de contexto: O utilizador NÃO falou de sexo explícito (Nível 1). Responde em Português de Portugal de forma curta, divertida e atrevida com piadinhas discretas/duplo sentido leve, SEM forçar atos sexuais nem linguagem pornográfica.]",
                   },
                 ],
               }),
@@ -412,11 +421,22 @@ export async function POST(req: NextRequest) {
     }
 
     const aiRefused =
-      /não posso (?:cumprir|processar|gerar|atender|criar)|não sou capaz/i.test(aiResponseText);
+      /(?:não\s+(?:posso|consigo)\s+(?:cumprir|processar|gerar|atender|criar|mostrar|enviar|mandar|fornecer|produzir)|não\s+sou\s+capaz|não\s+tenho\s+(?:a\s+)?capacidade|como\s+(?:uma?\s+)?(?:ia|modelo\s+de\s+texto)|i\s+cannot\s+(?:generate|create|send|show)|i\s+can't\s+(?:generate|create|send|show))/i.test(
+        aiResponseText
+      );
 
     let finalImagePrompt: string | null = null;
     if (userAskedForImage) {
-      finalImagePrompt = imageTagMatch ? imageTagMatch[1].trim() : content.slice(0, 400).trim();
+      const rawPrompt = imageTagMatch ? imageTagMatch[1].trim() : content.slice(0, 400).trim();
+      const cleanedPrompt = rawPrompt
+        .replace(
+          /^(?:cria|criar|gera|gerar|desenha|desenhar|faz|fazer|mostra|mostrar|manda|mandar|envia|enviar|quero\s+ver|quero)\s+(?:uma\s+|um\s+)?(?:foto|imagem|fotografia|retrato)\s+(?:de\s+|do\s+|da\s+)?/i,
+          ""
+        )
+        .trim();
+
+      finalImagePrompt = cleanedPrompt || rawPrompt;
+
       if (aiRefused || !aiResponseText) {
         aiResponseText = "Aqui tens a imagem que pediste:";
       }
