@@ -282,7 +282,7 @@ export async function POST(req: NextRequest) {
               signal: AbortSignal.timeout(25000),
               body: JSON.stringify({
                 model: uModel,
-                max_tokens: 380,
+                max_tokens: 450,
                 temperature: 0.85,
                 frequency_penalty: 0.35,
                 presence_penalty: 0.35,
@@ -343,8 +343,11 @@ export async function POST(req: NextRequest) {
         for (const currentModel of modelsToAttempt) {
           const openRouterBody: Record<string, any> = {
             model: currentModel,
+            ...(mode === "atrevido" &&
+              currentModel !== "openrouter/free" && {
+                max_tokens: 450,
+              }),
             ...(mode === "atrevido" && {
-              max_tokens: 300,
               temperature: 0.8,
               frequency_penalty: 0.35,
               presence_penalty: 0.35,
@@ -418,6 +421,23 @@ export async function POST(req: NextRequest) {
         .replace(/\[(?:IMAGE|IMAGEM):\s*([^\]]+)\]/gi, "")
         .replace(/:\s*\.\s*$/, ":")
         .trim();
+    }
+
+    // Garantir que, se a IA atingiu o limite de tokens a meio de uma frase (ex: "...enquanto"),
+    // corta apenas o pedaço final incompleto para terminar sempre na última frase fechada (. ! ? " ou emoji)
+    if (aiResponseText && !userAskedForImage) {
+      const trimmed = aiResponseText.trim();
+      const endsCleanly = /[.!?"'”’…)\]\p{Emoji_Presentation}\p{Extended_Pictographic}]$/u.test(trimmed);
+      if (!endsCleanly) {
+        const lastSentenceMatch = trimmed.match(
+          /^([\s\S]*[.!?"'”’…)\]\p{Emoji_Presentation}\p{Extended_Pictographic}])\s+[^.!?"'”’…)\]]+$/u
+        );
+        if (lastSentenceMatch && lastSentenceMatch[1].trim().length > 40) {
+          aiResponseText = lastSentenceMatch[1].trim();
+        } else {
+          aiResponseText = trimmed + "...";
+        }
+      }
     }
 
     const aiRefused =
