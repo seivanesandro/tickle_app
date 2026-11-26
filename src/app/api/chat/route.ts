@@ -99,6 +99,10 @@ export async function POST(req: NextRequest) {
             lower.includes("não posso processar") ||
             lower.includes("não posso cumprir") ||
             lower.includes("não posso criar") ||
+            lower.includes("não sei criar") ||
+            lower.includes("não sei gerar") ||
+            lower.includes("não consigo criar") ||
+            lower.includes("não consigo gerar") ||
             lower.includes("não sou capaz") ||
             lower.includes("não posso gerar") ||
             lower.includes("não posso atender") ||
@@ -149,13 +153,19 @@ export async function POST(req: NextRequest) {
     if (msgError) return NextResponse.json({ error: "Erro ao gravar a mensagem." }, { status: 500 });
     if (storagePath) await supabase.from("message_images").insert({ message_id: messageData.id, storage_path: storagePath });
 
-    // 7. Verificar se o utilizador pediu explicitamente para GERAR uma imagem (e NÃO enviou uma imagem para análise)
+    // 7. Verificar se o utilizador pediu explicitamente para GERAR uma imagem:
+    // - Se NÃO enviou foto anexada: aceita verbos de criação/pedido + foto/imagem.
+    // - Se ENVIOU uma foto anexada como referência (ex: "cria uma imagem com a tua face mas com corpo..."):
+    //   ativa também o gerador de imagens se o texto contiver um comando explícito de criação ("cria/gera/desenha/faz uma imagem/foto").
     const userAskedForImage =
-      !imageBase64 &&
       typeof content === "string" &&
-      /(?:cria|criar|gera|gerar|desenha|desenhar|faz|fazer|mostra|mostrar|manda|mandar|envia|enviar|tira|tirar|d[aá]|quero|queres|podes\s+(?:mostrar|mandar|enviar|criar|gerar|fazer)|ver\s+uma)\b.*(?:foto|fotos|imagem|imagens|fotografia|picture|image|retrato|selfie)/i.test(
-        content
-      );
+      (imageBase64
+        ? /(?:cria|criar|gera|gerar|desenha|desenhar|faz|fazer|transforma|transformar)\b.*(?:foto|fotos|imagem|imagens|fotografia|picture|image|retrato)/i.test(
+            content
+          )
+        : /(?:cria|criar|gera|gerar|desenha|desenhar|faz|fazer|mostra|mostrar|manda|mandar|envia|enviar|tira|tirar|d[aá]|quero|queres|podes\s+(?:mostrar|mandar|enviar|criar|gerar|fazer)|ver\s+uma)\b.*(?:foto|fotos|imagem|imagens|fotografia|picture|image|retrato|selfie)/i.test(
+            content
+          ));
 
     // 7.5. Detetar se o UTILIZADOR (apenas role === "user", ignorando respostas da IA) puxou conversa sexual explícita
     const sexualKeywordsRegex =
@@ -198,7 +208,11 @@ export async function POST(req: NextRequest) {
               (content?.trim()
                 ? content
                 : "Analisa e interpreta esta imagem em detalhe e responde de acordo com a tua personalidade.") +
-              (mode === "atrevido" && !isSexualConversation ? level1GuardNote : ""),
+              (userAskedForImage
+                ? imageMandatoryTailNote
+                : mode === "atrevido" && !isSexualConversation
+                  ? level1GuardNote
+                  : ""),
           },
           { type: "image_url", image_url: { url: imageBase64 } },
         ]
@@ -214,7 +228,7 @@ export async function POST(req: NextRequest) {
       let succeeded = false;
 
       const refusalRegex =
-        /(?:não\s+(?:posso|consigo)\s+(?:cumprir|processar|gerar|atender|criar|continuar|participar|ajudar|responder|escrever|descrever|encorajar|satisfazer)|não\s+sou\s+capaz|desculp[ea],?\s+mas\s+não|sem\s+entrar\s+no\s+explícito|atos\s+sexuais\s+explícitos|como\s+(?:uma?\s+)?(?:ia|inteligência\s+artificial|modelo\s+de\s+linguagem)|conteúdo\s+(?:sexual|explícito|inapropriado|adulto)|i\s+cannot\s+(?:fulfill|generate|create|continue|engage|describe)|i'm\s+sorry,?\s+but\s+i\s+can't|i\s+can't\s+describe\s+explicit|as\s+an\s+ai)/i;
+        /(?:não\s+(?:posso|consigo|sei)\s+(?:cumprir|processar|gerar|atender|criar|continuar|participar|ajudar|responder|escrever|descrever|encorajar|satisfazer)|não\s+sou\s+capaz|desculp[ea],?\s+mas\s+não|sem\s+entrar\s+no\s+explícito|atos\s+sexuais\s+explícitos|como\s+(?:uma?\s+)?(?:ia|inteligência\s+artificial|modelo\s+de\s+linguagem)|conteúdo\s+(?:sexual|explícito|inapropriado|adulto)|i\s+cannot\s+(?:fulfill|generate|create|continue|engage|describe)|i'm\s+sorry,?\s+but\s+i\s+can't|i\s+can't\s+describe\s+explicit|as\s+an\s+ai)/i;
 
       // Se o utilizador anexou uma FOTO no modo ATREVIDO com conversa sexual (ou se o modelo de visão recusar):
       // Como o Venice Uncensored e o MythoMax são modelos de texto (não recebem image_url direto),
@@ -441,21 +455,33 @@ export async function POST(req: NextRequest) {
     }
 
     const aiRefused =
-      /(?:não\s+(?:posso|consigo)\s+(?:cumprir|processar|gerar|atender|criar|mostrar|enviar|mandar|fornecer|produzir)|não\s+sou\s+capaz|não\s+tenho\s+(?:a\s+)?capacidade|como\s+(?:uma?\s+)?(?:ia|modelo\s+de\s+texto)|i\s+cannot\s+(?:generate|create|send|show)|i\s+can't\s+(?:generate|create|send|show))/i.test(
+      /(?:não\s+(?:posso|consigo|sei)\s+(?:cumprir|processar|gerar|atender|criar|mostrar|enviar|mandar|fornecer|produzir|fazer)|não\s+sou\s+capaz|não\s+tenho\s+(?:a\s+)?capacidade|como\s+(?:uma?\s+)?(?:ia|modelo\s+de\s+texto)|i\s+cannot\s+(?:generate|create|send|show)|i\s+can't\s+(?:generate|create|send|show))/i.test(
         aiResponseText
       );
 
     let finalImagePrompt: string | null = null;
     if (userAskedForImage) {
-      const rawPrompt = imageTagMatch ? imageTagMatch[1].trim() : content.slice(0, 400).trim();
+      let rawPrompt = imageTagMatch ? imageTagMatch[1].trim() : content.slice(0, 400).trim();
+
+      // Se o utilizador escreveu apenas "Cria a imagem que te pedi" e a IA não gerou a tag [IMAGE: ...],
+      // recupera o pedido de imagem da última mensagem do utilizador no histórico!
+      if (!imageTagMatch && /(?:que\s+te\s+pedi|que\s+pedi|anterior)/i.test(rawPrompt)) {
+        const lastUserRequest = [...previousMessages]
+          .reverse()
+          .find((m) => m.role === "user" && m.content && m.content.length > 15);
+        if (lastUserRequest?.content) {
+          rawPrompt = lastUserRequest.content.slice(0, 400).trim();
+        }
+      }
+
       const cleanedPrompt = rawPrompt
         .replace(
-          /^(?:cria|criar|gera|gerar|desenha|desenhar|faz|fazer|mostra|mostrar|manda|mandar|envia|enviar|quero\s+ver|quero)\s+(?:uma\s+|um\s+)?(?:foto|imagem|fotografia|retrato)\s+(?:de\s+|do\s+|da\s+)?/i,
+          /^(?:por\s+falar\s+em\s+\w+,?\s*)?(?:cria|criar|gera|gerar|desenha|desenhar|faz|fazer|mostra|mostrar|manda|mandar|envia|enviar|quero\s+ver|quero)\s+(?:uma\s+|um\s+|a\s+|o\s+)?(?:foto|imagem|fotografia|retrato)\s*(?:que\s+te\s+pedi)?\s*(?:de\s+|do\s+|da\s+|com\s+)?/i,
           ""
         )
         .trim();
 
-      finalImagePrompt = cleanedPrompt || rawPrompt;
+      finalImagePrompt = cleanedPrompt.length > 3 ? cleanedPrompt : rawPrompt;
 
       if (aiRefused || !aiResponseText) {
         aiResponseText = "Aqui tens a imagem que pediste:";
@@ -465,20 +491,32 @@ export async function POST(req: NextRequest) {
     if (finalImagePrompt) {
       let imgBuffer: Buffer | null = null;
 
-      try {
-        const seed = Math.floor(Math.random() * 1000000);
-        const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(finalImagePrompt)}?width=1024&height=1024&model=flux&enhance=true&nologo=true&seed=${seed}`;
-        const imgRes = await fetch(pollinationsUrl);
-        const contentType = imgRes.headers.get("content-type") || "";
+      // Tenta primeiro o modelo 'flux' (sem enhance=true para não bloquear nem dar timeout de 30s no LLM do Pollinations)
+      // e se der erro temporário faz 1 tentativa imediata com 'turbo' antes de declarar rate limit
+      const pollinationsModels = ["flux", "turbo"];
+      for (const pModel of pollinationsModels) {
+        try {
+          const seed = Math.floor(Math.random() * 1000000);
+          const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(finalImagePrompt)}?width=1024&height=1024&model=${pModel}&nologo=true&seed=${seed}`;
+          const imgRes = await fetch(pollinationsUrl, {
+            headers: {
+              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) TickleAI/2.0",
+            },
+            signal: AbortSignal.timeout(25000),
+          });
+          const contentType = imgRes.headers.get("content-type") || "";
 
-        if (imgRes.ok && contentType.includes("image")) {
-          const arrayBuffer = await imgRes.arrayBuffer();
-          imgBuffer = Buffer.from(arrayBuffer);
-        } else {
+          if (imgRes.ok && contentType.includes("image")) {
+            const arrayBuffer = await imgRes.arrayBuffer();
+            imgBuffer = Buffer.from(arrayBuffer);
+            imageRateLimited = false;
+            break;
+          } else {
+            imageRateLimited = true;
+          }
+        } catch {
           imageRateLimited = true;
         }
-      } catch {
-        imageRateLimited = true;
       }
 
       if (imgBuffer) {
